@@ -99,24 +99,41 @@ You can also host `server.py` on free services like **Render.com** or **Railway.
 
 ## Building on GitHub Codespaces
 
-The repository includes complete **Gradle wrapper (`gradlew`)** and **Dev Container (`.devcontainer`)** configurations for GitHub Codespaces.
+The repository includes complete **Gradle wrapper (`gradlew`)**, **Android SDK automated installer**, and **Dev Container (`.devcontainer`)** configurations for GitHub Codespaces.
 
-### Steps to build in Codespaces:
+### Option 1: Automatic Setup via Dev Container
 1. Open this repository on GitHub and click **Code -> Codespaces -> Create codespace on main**.
-2. The devcontainer will automatically initialize Java 17, Android SDK tools, and Python dependencies.
-3. In the Codespaces terminal, run:
+2. The dev container automatically runs the Android SDK setup in the background, installing:
+   - Command-Line Tools
+   - SDK Platform 36 (`platforms;android-36`)
+   - Build-Tools 36 (`build-tools;36.0.0`)
+   - Platform-Tools
+   - Python dependencies
+3. Run the build:
    ```bash
    ./gradlew assembleDebug
    ```
-4. The generated APK will be at:
-   ```
-   app/build/outputs/apk/debug/app-debug.apk
-   ```
-5. You can also start the Python server directly inside Codespaces:
-   ```bash
-   python server/server.py
-   ```
-   (In Codespaces, forward port `8765` under the **Ports** tab and set Port Visibility to **Public** to get an instant public WebSocket URL!)
+
+### Option 2: One-Command Manual Setup
+If you are running in a default Codespaces container or any Linux shell without the Dev Container:
+```bash
+bash setup-android.sh
+./gradlew assembleDebug
+```
+
+The compiled APK will be output to:
+```
+app/build/outputs/apk/debug/app-debug.apk
+```
+
+---
+
+### Running the Server in Codespaces
+You can also run the authoritative Python game server directly inside Codespaces:
+```bash
+python server/server.py
+```
+*(Under the **Ports** tab in Codespaces, set port `8765` visibility to **Public** to obtain an instant public URL to connect with friends anywhere!)*
 
 ---
 
