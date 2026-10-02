@@ -315,29 +315,7 @@ class GameViewModel : ViewModel(), NetworkMessageListener {
                         )
                     }
                 }
-                "card_box" -> {
-                    val p1Name = json.optString("p1_name",
-                        _uiState.value.player1Name.ifEmpty { "Player" })
-                    val p2Name = json.optString("p2_name",
-                     _uiState.value.player2Name.ifEmpty { "Opponent" })
-                    val p1Card = CardType.fromString(json.optString("p1_card"))
-                    val p1Rank = WagerRank.fromString(json.optString("p1_rank"))
-                    val p2Card = CardType.fromString(json.optString("p2_card"))
-                    val p2Rank = WagerRank.fromString(json.optString("p2_rank"))
-                    val entry = TerminalEntry.CardBox(
-                        id = UUID.randomUUID().toString(),
-                        p1Name = p1Name,
-                        p1Card = p1Card,
-                        p1Rank = p1Rank,
-                        p2Name = p2Name,
-                        p2Card = p2Card,
-                        p2Rank = p2Rank,
-                        isRevealed = json.optBoolean("is_revealed", true))
-
-                    _uiState.update {
-                        it.copy(terminalEntries = it.terminalEntries + entry)
-                    }
-                }                       
+                "card_box" -> { }                       
                 "system" -> {
                     val text = json.optString("text")
                     val levelStr = json.optString("level", "info")
