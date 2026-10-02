@@ -329,11 +329,20 @@ class LocalGameEngine(
             val p2Card = p2ChosenCard ?: CardType.ROCK
             val p2Rk = p2ChosenRank ?: WagerRank.C
 
-            // Compact aesthetic duel box
-            val ascii = "┌──────────────────────────────────────────────┐\n" +
-                        "│  $localPlayerName: [${p1Card.displayName} · ${p1Rk.code}]  ⚔️  $opponentName: [${p2Card.displayName} · ${p2Rk.code}] │\n" +
-                        "└──────────────────────────────────────────────┘"
-            sendSystem(ascii, "card_box")
+            // Structured card-box payload.
+            // The Android UI will render this responsively instead of using ASCII.
+            val cardBoxPayload = JSONObject().apply {
+                put("type", "card_box")
+                put("p1_name", localPlayerName)
+                put("p1_card", p1Card.code)
+                put("p1_rank", p1Rk.code)
+                put("p2_name", opponentName)
+                put("p2_card", p2Card.code)
+                put("p2_rank", p2Rk.code)
+                put("is_revealed", true)
+            }
+
+onMessageToClient(cardBoxPayload.toString())
 
             // Determine winner
             val winner = determineWinner(p1Card, p2Card)
