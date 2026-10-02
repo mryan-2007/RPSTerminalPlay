@@ -97,6 +97,29 @@ You can also host `server.py` on free services like **Render.com** or **Railway.
 
 ---
 
+## Building on GitHub Codespaces
+
+The repository includes complete **Gradle wrapper (`gradlew`)** and **Dev Container (`.devcontainer`)** configurations for GitHub Codespaces.
+
+### Steps to build in Codespaces:
+1. Open this repository on GitHub and click **Code -> Codespaces -> Create codespace on main**.
+2. The devcontainer will automatically initialize Java 17, Android SDK tools, and Python dependencies.
+3. In the Codespaces terminal, run:
+   ```bash
+   ./gradlew assembleDebug
+   ```
+4. The generated APK will be at:
+   ```
+   app/build/outputs/apk/debug/app-debug.apk
+   ```
+5. You can also start the Python server directly inside Codespaces:
+   ```bash
+   python server/server.py
+   ```
+   (In Codespaces, forward port `8765` under the **Ports** tab and set Port Visibility to **Public** to get an instant public WebSocket URL!)
+
+---
+
 ## Game Rules & Commands
 
 ### Initial Setup
