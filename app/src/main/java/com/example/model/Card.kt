@@ -24,7 +24,12 @@ enum class CardType(val code: String, val displayName: String) {
     companion object {
         fun fromString(value: String): CardType? {
             val clean = value.trim().lowercase()
-            return entries.firstOrNull { it.code == clean || it.name.lowercase() == clean }
+            return when (clean) {
+                "r", "rock" -> ROCK
+                "p", "paper" -> PAPER
+                "s", "scissor", "scissors" -> SCISSORS
+                else -> entries.firstOrNull { it.code == clean || it.name.lowercase() == clean }
+            }
         }
     }
 }

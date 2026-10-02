@@ -20,6 +20,8 @@ sealed class TerminalEntry {
         val senderRole: String, // "player1" | "player2"
         val senderName: String,
         val isLocal: Boolean,
+        val replyToSender: String? = null,
+        val replyToText: String? = null,
         override val timestamp: Long = System.currentTimeMillis()
     ) : TerminalEntry()
 
@@ -45,6 +47,8 @@ sealed class TerminalEntry {
     data class RevealOutcome(
         override val id: String,
         val winner: Int, // 0: draw, 1: p1, 2: p2
+        val p1Name: String = "Player",
+        val p2Name: String = "Opponent",
         val reason: String,
         val outcomeText: String,
         val p1Delta: Int,

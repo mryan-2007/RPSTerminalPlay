@@ -1,7 +1,14 @@
 package com.example.ui.components
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,14 +17,28 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Reply
+import androidx.compose.material3.BasicAlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -41,7 +62,6 @@ import com.example.ui.theme.RockColor
 import com.example.ui.theme.ScissorsColor
 import com.example.ui.theme.TerminalAmber
 import com.example.ui.theme.TerminalBorder
-import com.example.ui.theme.TerminalBorderHighlight
 import com.example.ui.theme.TerminalCardBg
 import com.example.ui.theme.TerminalCrimson
 import com.example.ui.theme.TerminalDarkSurface
@@ -52,86 +72,167 @@ import com.example.ui.theme.TerminalTextSecondary
 @Composable
 fun TerminalMessageItem(
     entry: TerminalEntry,
+    showSenderHeader: Boolean = true,
+    onReply: (TerminalEntry.Chat) -> Unit = {},
+    onDelete: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     when (entry) {
         is TerminalEntry.Chat -> {
-            ChatLogItem(entry = entry, modifier = modifier)
+            ChatLogItem(
+                entry = entry,
+                showSenderHeader = showSenderHeader,
+                onReply = { onReply(entry) },
+                onDelete = { onDelete(entry.id) },
+                modifier = modifier
+            )
         }
         is TerminalEntry.SystemMsg -> {
-            SystemLogItem(entry = entry, modifier = modifier)
+            SystemLogItem(
+                entry = entry,
+                onDelete = { onDelete(entry.id) },
+                modifier = modifier
+            )
         }
         is TerminalEntry.CardBox -> {
-            CardBoxRevealItem(entry = entry, modifier = modifier)
+            CardBoxRevealItem(
+                entry = entry,
+                onDelete = { onDelete(entry.id) },
+                modifier = modifier
+            )
         }
         is TerminalEntry.RevealOutcome -> {
-            RevealOutcomeItem(entry = entry, modifier = modifier)
+            RevealOutcomeItem(
+                entry = entry,
+                onDelete = { onDelete(entry.id) },
+                modifier = modifier
+            )
         }
     }
 }
 
 /**
- * Chat message item:
- * - Local player (RIGHT): "> message"
- * - Opponent (LEFT): "< message"
+ * Chat message item with:
+ * - Grouped sender headers (like Messenger/WhatsApp)
+ * - Quoted reply preview if replying to another message
+ * - Long press to Reply, Copy, or Delete
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ChatLogItem(
     entry: TerminalEntry.Chat,
+    showSenderHeader: Boolean,
+    onReply: () -> Unit,
+    onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val alignment = if (entry.isLocal) Alignment.End else Alignment.Start
     val prefix = if (entry.isLocal) ">" else "<"
     val accentColor = if (entry.isLocal) PhosphorGreen else CyberCyan
+    var showActionMenu by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 3.dp),
+            .padding(top = if (showSenderHeader) 4.dp else 1.dp, bottom = 1.dp),
         horizontalAlignment = alignment
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 4.dp)
-        ) {
-            Text(
-                text = "${entry.senderName.uppercase()} ",
-                fontFamily = FontFamily.Monospace,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = accentColor
-            )
+        // Show sender name header ONLY if this is the start of a consecutive message block
+        if (showSenderHeader) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
+            ) {
+                Text(
+                    text = entry.senderName.uppercase(),
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = accentColor
+                )
+            }
         }
 
         Box(
             modifier = Modifier
-                .clip(RoundedCornerShape(4.dp))
-                .background(if (entry.isLocal) Color(0xFF0D2316) else Color(0xFF0A1F2C))
+                .clip(RoundedCornerShape(6.dp))
+                .background(if (entry.isLocal) Color(0xFF0D2517) else Color(0xFF0C2232))
                 .border(
                     width = 1.dp,
-                    color = if (entry.isLocal) Color(0xFF144D2B) else Color(0xFF12435A),
-                    shape = RoundedCornerShape(4.dp)
+                    color = if (entry.isLocal) Color(0xFF14542E) else Color(0xFF134A66),
+                    shape = RoundedCornerShape(6.dp)
+                )
+                .combinedClickable(
+                    onClick = {},
+                    onLongClick = { showActionMenu = true }
                 )
                 .padding(horizontal = 10.dp, vertical = 6.dp)
         ) {
-            Text(
-                text = "$prefix ${entry.text}",
-                fontFamily = FontFamily.Monospace,
-                fontSize = 14.sp,
-                color = TerminalTextPrimary,
-                lineHeight = 18.sp
-            )
+            Column {
+                // If this message was a reply to another message, show sleek quote preview
+                if (!entry.replyToSender.isNullOrBlank()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 4.dp)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(Color(0xFF061018))
+                            .border(1.dp, Color(0xFF1A3344), RoundedCornerShape(3.dp))
+                            .padding(horizontal = 6.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = "↩ ${entry.replyToSender}: \"${entry.replyToText ?: ""}\"",
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 10.sp,
+                            color = TerminalTextMuted,
+                            maxLines = 1
+                        )
+                    }
+                }
+
+                Text(
+                    text = "$prefix ${entry.text}",
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 13.sp,
+                    color = TerminalTextPrimary,
+                    lineHeight = 17.sp
+                )
+            }
         }
+    }
+
+    if (showActionMenu) {
+        MessageActionDialog(
+            senderName = entry.senderName,
+            messageText = entry.text,
+            onReply = {
+                showActionMenu = false
+                onReply()
+            },
+            onCopy = {
+                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(ClipData.newPlainText("Message", entry.text))
+                Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
+                showActionMenu = false
+            },
+            onDelete = {
+                showActionMenu = false
+                onDelete()
+            },
+            onDismiss = { showActionMenu = false }
+        )
     }
 }
 
 /**
- * System and game event log item:
- * Centered or full-width with distinct bracket styling and color highlights.
+ * System and game event log item.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SystemLogItem(
     entry: TerminalEntry.SystemMsg,
+    onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val tintColor = when (entry.level) {
@@ -144,21 +245,23 @@ private fun SystemLogItem(
         SystemLevel.CARDS -> PhosphorGreen
     }
 
+    var showActionMenu by remember { mutableStateOf(false) }
+
     if (entry.level == SystemLevel.COUNTDOWN || entry.level == SystemLevel.HIGHLIGHT) {
-        // Dramatic centered countdown / reveal
+        // Compact, aesthetic centered countdown / reveal
         Box(
             modifier = modifier
                 .fillMaxWidth()
-                .padding(vertical = 4.dp),
+                .padding(vertical = 3.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = entry.text,
                 fontFamily = FontFamily.Monospace,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.ExtraBold,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
                 color = tintColor,
-                letterSpacing = 2.sp
+                letterSpacing = 1.sp
             )
         }
     } else {
@@ -166,27 +269,48 @@ private fun SystemLogItem(
         Box(
             modifier = modifier
                 .fillMaxWidth()
-                .padding(vertical = 3.dp)
+                .padding(vertical = 2.dp)
                 .clip(RoundedCornerShape(4.dp))
                 .background(Color(0xFF090D14))
                 .border(1.dp, Color(0xFF161F2E), RoundedCornerShape(4.dp))
-                .padding(horizontal = 8.dp, vertical = 6.dp)
+                .combinedClickable(
+                    onClick = {},
+                    onLongClick = { showActionMenu = true }
+                )
+                .padding(horizontal = 8.dp, vertical = 5.dp)
         ) {
             val annotated = buildTerminalText(entry.text, tintColor)
             Text(
                 text = annotated,
                 fontFamily = FontFamily.Monospace,
                 fontSize = 12.sp,
-                lineHeight = 17.sp,
+                lineHeight = 16.sp,
                 color = TerminalTextSecondary
             )
         }
     }
+
+    if (showActionMenu) {
+        MessageActionDialog(
+            senderName = "SYSTEM",
+            messageText = entry.text,
+            showReplyOption = false,
+            onReply = {},
+            onCopy = {
+                showActionMenu = false
+            },
+            onDelete = {
+                showActionMenu = false
+                onDelete()
+            },
+            onDismiss = { showActionMenu = false }
+        )
+    }
 }
 
 /**
- * Parses brackets like [ROCK], [PAPER], [SCISSORS], [C], [B], [A], [S]
- * and applies authentic colors.
+ * Parses tokens like [ROCK], [PAPER], [SCISSORS], [C], [B], [A], [S]
+ * and applies vibrant, aesthetic colors.
  */
 fun buildTerminalText(text: String, defaultTint: Color) = buildAnnotatedString {
     var cursor = 0
@@ -200,7 +324,7 @@ fun buildTerminalText(text: String, defaultTint: Color) = buildAnnotatedString {
 
         if (start > cursor) {
             val normalText = text.substring(cursor, start)
-            if (normalText.contains("[SYSTEM]") || normalText.contains("===")) {
+            if (normalText.contains("[SYSTEM]") || normalText.contains("===") || normalText.contains("═══")) {
                 withStyle(SpanStyle(color = defaultTint, fontWeight = FontWeight.Bold)) {
                     append(normalText)
                 }
@@ -216,10 +340,10 @@ fun buildTerminalText(text: String, defaultTint: Color) = buildAnnotatedString {
             inside.startsWith("ROCK") -> RockColor
             inside.startsWith("PAPER") -> PaperColor
             inside.startsWith("SCISSORS") -> ScissorsColor
-            inside == "C" || inside.endsWith(" C") -> RankColorC
-            inside == "B" || inside.endsWith(" B") -> RankColorB
-            inside == "A" || inside.endsWith(" A") -> RankColorA
-            inside == "S" || inside.endsWith(" S") -> RankColorS
+            inside == "C" || inside.endsWith(" C") || inside.startsWith("C ") -> RankColorC
+            inside == "B" || inside.endsWith(" B") || inside.startsWith("B ") -> RankColorB
+            inside == "A" || inside.endsWith(" A") || inside.startsWith("A ") -> RankColorA
+            inside == "S" || inside.endsWith(" S") || inside.startsWith("S ") -> RankColorS
             inside == "SYSTEM" -> defaultTint
             inside == "READY" -> PhosphorGreen
             inside == "LOCKED" -> CyberCyan
@@ -238,79 +362,83 @@ fun buildTerminalText(text: String, defaultTint: Color) = buildAnnotatedString {
 
     if (cursor < text.length) {
         val remaining = text.substring(cursor)
-        withStyle(SpanStyle(color = if (remaining.contains("[SYSTEM]") || remaining.contains("===")) defaultTint else TerminalTextSecondary)) {
+        withStyle(SpanStyle(color = if (remaining.contains("[SYSTEM]") || remaining.contains("===") || remaining.contains("═══")) defaultTint else TerminalTextSecondary)) {
             append(remaining)
         }
     }
 }
 
 /**
- * ASCII Card Box Reveal UI component:
- * Shows the two played cards facing each other.
+ * Compact aesthetic card duel display
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun CardBoxRevealItem(
     entry: TerminalEntry.CardBox,
+    onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var showActionMenu by remember { mutableStateOf(false) }
+
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp)
+            .padding(vertical = 4.dp)
             .clip(RoundedCornerShape(6.dp))
             .background(TerminalDarkSurface)
             .border(1.dp, PhosphorGreen, RoundedCornerShape(6.dp))
-            .padding(12.dp)
+            .combinedClickable(
+                onClick = {},
+                onLongClick = { showActionMenu = true }
+            )
+            .padding(8.dp)
     ) {
-        Column(
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "══ CARD REVEAL ══",
-                fontFamily = FontFamily.Monospace,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = PhosphorGreen
+            // First Player Card
+            CompactDuelCard(
+                playerName = entry.p1Name,
+                cardType = entry.p1Card,
+                rank = entry.p1Rank,
+                isRevealed = entry.isRevealed
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "⚔️",
+                fontSize = 16.sp
+            )
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Player 1 Card
-                AsciiCardView(
-                    playerName = entry.p1Name,
-                    cardType = entry.p1Card,
-                    rank = entry.p1Rank,
-                    isRevealed = entry.isRevealed
-                )
-
-                Text(
-                    text = "VS",
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = TerminalAmber
-                )
-
-                // Player 2 Card
-                AsciiCardView(
-                    playerName = entry.p2Name,
-                    cardType = entry.p2Card,
-                    rank = entry.p2Rank,
-                    isRevealed = entry.isRevealed
-                )
-            }
+            // Second Player Card
+            CompactDuelCard(
+                playerName = entry.p2Name,
+                cardType = entry.p2Card,
+                rank = entry.p2Rank,
+                isRevealed = entry.isRevealed
+            )
         }
+    }
+
+    if (showActionMenu) {
+        MessageActionDialog(
+            senderName = "DUEL REVEAL",
+            messageText = "${entry.p1Name} vs ${entry.p2Name}",
+            showReplyOption = false,
+            onReply = {},
+            onCopy = {},
+            onDelete = {
+                showActionMenu = false
+                onDelete()
+            },
+            onDismiss = { showActionMenu = false }
+        )
     }
 }
 
 @Composable
-fun AsciiCardView(
+fun CompactDuelCard(
     playerName: String,
     cardType: CardType?,
     rank: WagerRank?,
@@ -331,67 +459,32 @@ fun AsciiCardView(
             fontFamily = FontFamily.Monospace,
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
-            color = TerminalTextSecondary
+            color = TerminalTextPrimary
         )
 
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(2.dp))
 
         Box(
             modifier = Modifier
-                .width(115.dp)
                 .clip(RoundedCornerShape(4.dp))
                 .background(TerminalCardBg)
                 .border(1.dp, rankColor, RoundedCornerShape(4.dp))
-                .padding(horizontal = 8.dp, vertical = 8.dp)
+                .padding(horizontal = 8.dp, vertical = 4.dp)
         ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                // Top border line
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "┌─────────┐",
+                    text = cardName,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 11.sp,
-                    color = rankColor
+                    fontWeight = FontWeight.Bold,
+                    color = cardColor
                 )
-
-                // Content line: "│ ROCK  A │"
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "│",
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 11.sp,
-                        color = rankColor
-                    )
-                    Text(
-                        text = cardName,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = cardColor
-                    )
-                    Text(
-                        text = rankCode,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = rankColor
-                    )
-                    Text(
-                        text = "│",
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 11.sp,
-                        color = rankColor
-                    )
-                }
-
-                // Bottom border line
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "└─────────┘",
+                    text = rankCode,
                     fontFamily = FontFamily.Monospace,
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.ExtraBold,
                     color = rankColor
                 )
             }
@@ -400,17 +493,19 @@ fun AsciiCardView(
 }
 
 /**
- * Result of round resolution
+ * Result of round resolution with actual player names and individual chosen score deltas.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun RevealOutcomeItem(
     entry: TerminalEntry.RevealOutcome,
+    onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val winTitle = when (entry.winner) {
         0 -> "IT'S A DRAW!"
-        1 -> "PLAYER 1 WINS!"
-        2 -> "PLAYER 2 WINS!"
+        1 -> "${entry.p1Name.uppercase()} WINS!"
+        2 -> "${entry.p2Name.uppercase()} WINS!"
         else -> "ROUND RESOLVED"
     }
 
@@ -421,31 +516,36 @@ private fun RevealOutcomeItem(
         else -> TerminalTextPrimary
     }
 
+    var showActionMenu by remember { mutableStateOf(false) }
+
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp)
+            .padding(vertical = 3.dp)
             .clip(RoundedCornerShape(4.dp))
             .background(Color(0xFF0A121E))
             .border(1.dp, bannerColor, RoundedCornerShape(4.dp))
-            .padding(10.dp)
+            .combinedClickable(
+                onClick = {},
+                onLongClick = { showActionMenu = true }
+            )
+            .padding(8.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(
                 text = "═══ $winTitle ═══",
                 fontFamily = FontFamily.Monospace,
-                fontSize = 13.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 color = bannerColor
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(2.dp))
 
             Text(
                 text = entry.reason,
                 fontFamily = FontFamily.Monospace,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
+                fontSize = 11.sp,
                 color = TerminalTextPrimary
             )
 
@@ -456,21 +556,147 @@ private fun RevealOutcomeItem(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "P1: ${entry.p1Score} (${if (entry.p1Delta >= 0) "+${entry.p1Delta}" else "${entry.p1Delta}"})",
+                    text = "${entry.p1Name}: ${entry.p1Score} (${if (entry.p1Delta >= 0) "+${entry.p1Delta}" else "${entry.p1Delta}"})",
                     fontFamily = FontFamily.Monospace,
-                    fontSize = 12.sp,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = if (entry.p1Delta >= 0) PhosphorGreen else TerminalCrimson
                 )
 
                 Text(
-                    text = "P2: ${entry.p2Score} (${if (entry.p2Delta >= 0) "+${entry.p2Delta}" else "${entry.p2Delta}"})",
+                    text = "${entry.p2Name}: ${entry.p2Score} (${if (entry.p2Delta >= 0) "+${entry.p2Delta}" else "${entry.p2Delta}"})",
                     fontFamily = FontFamily.Monospace,
-                    fontSize = 12.sp,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = if (entry.p2Delta >= 0) CyberCyan else TerminalCrimson
                 )
             }
+        }
+    }
+
+    if (showActionMenu) {
+        MessageActionDialog(
+            senderName = "ROUND RESULT",
+            messageText = entry.reason,
+            showReplyOption = false,
+            onReply = {},
+            onCopy = {},
+            onDelete = {
+                showActionMenu = false
+                onDelete()
+            },
+            onDismiss = { showActionMenu = false }
+        )
+    }
+}
+
+/**
+ * Sleek modal dialog triggered on message long-press
+ * (Reply, Copy, Delete)
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MessageActionDialog(
+    senderName: String,
+    messageText: String,
+    showReplyOption: Boolean = true,
+    onReply: () -> Unit,
+    onCopy: () -> Unit,
+    onDelete: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    BasicAlertDialog(
+        onDismissRequest = onDismiss
+    ) {
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(TerminalDarkSurface)
+                .border(1.dp, CyberCyan, RoundedCornerShape(8.dp))
+                .padding(16.dp)
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "MESSAGE ACTIONS // $senderName",
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = CyberCyan
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = "\"${messageText.take(60)}${if (messageText.length > 60) "..." else ""}\"",
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 11.sp,
+                    color = TerminalTextSecondary,
+                    maxLines = 2
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                if (showReplyOption) {
+                    ActionRow(
+                        icon = Icons.Default.Reply,
+                        label = "REPLY TO MESSAGE",
+                        color = CyberCyan,
+                        onClick = onReply
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                ActionRow(
+                    icon = Icons.Default.ContentCopy,
+                    label = "COPY TEXT",
+                    color = PhosphorGreen,
+                    onClick = onCopy
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                ActionRow(
+                    icon = Icons.Default.Delete,
+                    label = "DELETE FROM LOG",
+                    color = TerminalCrimson,
+                    onClick = onDelete
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActionRow(
+    icon: ImageVector,
+    label: String,
+    color: Color,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(4.dp))
+            .background(color.copy(alpha = 0.12f))
+            .border(1.dp, color.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = label,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = color
+            )
         }
     }
 }

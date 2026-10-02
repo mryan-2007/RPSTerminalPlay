@@ -30,42 +30,75 @@ class GameViewModel : ViewModel(), NetworkMessageListener {
     private var localEngine: LocalGameEngine? = null
 
     init {
-        // Start in Local Engine mode initially so user can test and play immediately!
-        startLocalEngine()
+        // Start in pure, clean terminal state without auto-starting local game or score boxes
+        showWelcomeTerminal()
     }
 
-    fun startLocalEngine() {
+    fun showWelcomeTerminal() {
+        _uiState.update {
+            it.copy(
+                connectionStatus = ConnectionStatus.DISCONNECTED,
+                role = PlayerRole.UNASSIGNED,
+                player1Name = "",
+                player2Name = "",
+                terminalEntries = listOf(
+                    TerminalEntry.SystemMsg(
+                        id = UUID.randomUUID().toString(),
+                        text = "╔════════════════════════════════════════════╗\n" +
+                               "║        RPS // TACTICAL TERMINAL            ║\n" +
+                               "╚════════════════════════════════════════════╝\n\n" +
+                               "Choose an option to play:\n" +
+                               "  • Type /local [name]  - Start solo / practice battle\n" +
+                               "  • Tap 🌐 (top right)  - Connect to online friend\n" +
+                               "  • Type /help          - Show all commands & rules",
+                        level = SystemLevel.INFO
+                    )
+                )
+            )
+        }
+    }
+
+    fun startLocalEngine(playerName: String = _uiState.value.localPlayerName.ifBlank { "Player" }) {
         wsClient.disconnect()
+        val cleanName = playerName.trim().ifEmpty { "Player" }
         _uiState.update {
             it.copy(
                 isHostMode = true,
                 connectionStatus = ConnectionStatus.CONNECTED,
                 role = PlayerRole.PLAYER1,
-                localPlayerName = "Ryan",
-                player1Name = "Ryan",
-                player2Name = "Friend",
+                localPlayerName = cleanName,
+                player1Name = cleanName,
+                player2Name = "Bot",
+                player1Score = 50,
+                player2Score = 50,
                 terminalEntries = emptyList()
             )
         }
-        localEngine = LocalGameEngine(viewModelScope) { jsonString ->
+        localEngine = LocalGameEngine(
+            localPlayerName = cleanName,
+            opponentName = "Bot",
+            scope = viewModelScope
+        ) { jsonString ->
             processIncomingJson(jsonString)
         }
     }
 
-    fun connectToTermuxServer(address: String, playerName: String = "Ryan") {
+    fun connectToTermuxServer(address: String, playerName: String = "Player") {
         localEngine = null
         val cleanAddr = address.trim()
-        val name = playerName.trim().ifEmpty { "Ryan" }
+        val name = playerName.trim().ifEmpty { "Player" }
 
         _uiState.update {
             it.copy(
                 serverAddress = cleanAddr,
                 localPlayerName = name,
+                player1Name = "",
+                player2Name = "",
                 connectionStatus = ConnectionStatus.CONNECTING,
                 isHostMode = false,
                 terminalEntries = it.terminalEntries + TerminalEntry.SystemMsg(
                     id = UUID.randomUUID().toString(),
-                    text = "[SYSTEM] Connecting to Termux server at $cleanAddr...",
+                    text = "[SYSTEM] Connecting to server at $cleanAddr as $name...",
                     level = SystemLevel.INFO
                 )
             )
@@ -83,6 +116,8 @@ class GameViewModel : ViewModel(), NetworkMessageListener {
             it.copy(
                 connectionStatus = ConnectionStatus.DISCONNECTED,
                 role = PlayerRole.UNASSIGNED,
+                player1Name = "",
+                player2Name = "",
                 terminalEntries = it.terminalEntries + TerminalEntry.SystemMsg(
                     id = UUID.randomUUID().toString(),
                     text = "[SYSTEM] Disconnected from server.",
@@ -96,43 +131,98 @@ class GameViewModel : ViewModel(), NetworkMessageListener {
         _uiState.update { it.copy(inputText = newText) }
     }
 
+    fun setReplyingTo(chat: TerminalEntry.Chat?) {
+        _uiState.update { it.copy(replyingTo = chat) }
+    }
+
+    fun cancelReply() {
+        _uiState.update { it.copy(replyingTo = null) }
+    }
+
+    fun deleteMessage(id: String) {
+        _uiState.update { current ->
+            current.copy(
+                terminalEntries = current.terminalEntries.filterNot { it.id == id },
+                replyingTo = if (current.replyingTo?.id == id) null else current.replyingTo
+            )
+        }
+    }
+
     fun submitCurrentInput() {
         val text = _uiState.value.inputText.trim()
         if (text.isEmpty()) return
 
-        // Clear input bar
-        _uiState.update { it.copy(inputText = "") }
+        val replying = _uiState.value.replyingTo
 
-        // Local command handling for /clear: always clears visible log immediately
-        if (text.equals("/clear", ignoreCase = true)) {
+        // Clear input bar and active reply
+        _uiState.update { it.copy(inputText = "", replyingTo = null) }
+
+        // Local command handling
+        val lower = text.lowercase()
+        if (lower == "/clear") {
             clearTerminalLog()
-            // Still dispatch to server/engine to inform if needed
+            return
+        }
+
+        if (lower.startsWith("/local")) {
+            val parts = text.split("\\s+".toRegex())
+            val name = if (parts.size > 1) parts[1] else _uiState.value.localPlayerName
+            startLocalEngine(name)
+            return
+        }
+
+        if (lower.startsWith("/connect")) {
+            val parts = text.split("\\s+".toRegex())
+            if (parts.size >= 2) {
+                val addr = parts[1]
+                val name = if (parts.size >= 3) parts[2] else _uiState.value.localPlayerName
+                connectToTermuxServer(addr, name)
+            } else {
+                showConnectDialog(true)
+            }
+            return
+        }
+
+        if (lower == "/help") {
+            showHelp()
+            return
         }
 
         if (localEngine != null) {
-            localEngine?.handleInput(text)
+            val formatted = if (replying != null) {
+                "[Replying to ${replying.senderName}: \"${replying.text.take(20)}\"] $text"
+            } else {
+                text
+            }
+            localEngine?.handleInput(formatted)
         } else if (wsClient.isConnected) {
             val payload = JSONObject().apply {
                 put("type", "input")
                 put("text", text)
+                if (replying != null) {
+                    put("reply_to_sender", replying.senderName)
+                    put("reply_to_text", replying.text.take(30))
+                }
             }
             wsClient.send(payload.toString())
         } else {
-            addSystemMessage("[SYSTEM] Not connected to any server. Check Termux connection or switch to Local mode.", SystemLevel.DANGER)
+            addSystemMessage("[SYSTEM] Not connected to any game. Type /local to play solo or tap 🌐 to connect online.", SystemLevel.WARNING)
         }
     }
 
-    fun quickCommand(command: String) {
-        _uiState.update { it.copy(inputText = command) }
-        submitCurrentInput()
-    }
-
-    fun appendToInput(token: String) {
-        _uiState.update {
-            val current = it.inputText
-            val updated = if (current.isEmpty()) token else "$current $token"
-            it.copy(inputText = updated)
-        }
+    private fun showHelp() {
+        val help = """
+[SYSTEM] COMMANDS & GAMEPLAY:
+  /local [name]     - Start local solo practice
+  /connect <url>    - Connect to online / friend
+  /start            - Begin active round
+  r, p, s           - Choose Rock 🪨, Paper 📄, Scissors ✂️
+  c, b, a, s        - Choose Wager Rank (C:3, B:7, A:15, S:25)
+  r A, p B          - Shortcut: Card & Rank together
+  /cards            - View your remaining cards
+  /clear            - Clear terminal screen
+""".trimIndent()
+        addSystemMessage(help, SystemLevel.INFO)
     }
 
     fun clearTerminalLog() {
@@ -161,7 +251,6 @@ class GameViewModel : ViewModel(), NetworkMessageListener {
     override fun onConnected() {
         viewModelScope.launch {
             _uiState.update { it.copy(connectionStatus = ConnectionStatus.CONNECTED) }
-            // Send handshake
             val handshake = JSONObject().apply {
                 put("type", "handshake")
                 put("name", _uiState.value.localPlayerName)
@@ -198,7 +287,7 @@ class GameViewModel : ViewModel(), NetworkMessageListener {
                     connectionStatus = ConnectionStatus.ERROR,
                     terminalEntries = it.terminalEntries + TerminalEntry.SystemMsg(
                         id = UUID.randomUUID().toString(),
-                        text = "[ERROR] Network failure: ${error.message ?: "Connection error"}\nCheck if Termux server is running at ${_uiState.value.serverAddress}",
+                        text = "[ERROR] Network failure: ${error.message ?: "Connection error"}\nCheck if server is running at ${_uiState.value.serverAddress}",
                         level = SystemLevel.DANGER
                     )
                 )
@@ -217,9 +306,11 @@ class GameViewModel : ViewModel(), NetworkMessageListener {
                         "player2" -> PlayerRole.PLAYER2
                         else -> PlayerRole.UNASSIGNED
                     }
+                    val ackName = json.optString("name", _uiState.value.localPlayerName)
                     _uiState.update {
                         it.copy(
                             role = assignedRole,
+                            localPlayerName = ackName,
                             connectionStatus = ConnectionStatus.CONNECTED
                         )
                     }
@@ -231,14 +322,19 @@ class GameViewModel : ViewModel(), NetworkMessageListener {
                     val isLocal = when (_uiState.value.role) {
                         PlayerRole.PLAYER1 -> senderRole == "player1"
                         PlayerRole.PLAYER2 -> senderRole == "player2"
-                        else -> false
+                        else -> senderName == _uiState.value.localPlayerName
                     }
+                    val replyToSender = json.optString("reply_to_sender", "").ifEmpty { null }
+                    val replyToText = json.optString("reply_to_text", "").ifEmpty { null }
+
                     val entry = TerminalEntry.Chat(
                         id = UUID.randomUUID().toString(),
                         text = text,
                         senderRole = senderRole,
                         senderName = senderName,
-                        isLocal = isLocal
+                        isLocal = isLocal,
+                        replyToSender = replyToSender,
+                        replyToText = replyToText
                     )
                     _uiState.update { it.copy(terminalEntries = it.terminalEntries + entry) }
                 }
@@ -251,7 +347,7 @@ class GameViewModel : ViewModel(), NetworkMessageListener {
                         "success" -> SystemLevel.SUCCESS
                         "countdown" -> SystemLevel.COUNTDOWN
                         "highlight" -> SystemLevel.HIGHLIGHT
-                        "cards_display" -> SystemLevel.CARDS
+                        "cards_display", "cards" -> SystemLevel.CARDS
                         else -> SystemLevel.INFO
                     }
                     val entry = TerminalEntry.SystemMsg(
@@ -306,6 +402,8 @@ class GameViewModel : ViewModel(), NetworkMessageListener {
                 }
                 "reveal" -> {
                     val winner = json.optInt("winner")
+                    val p1Name = json.optString("p1_name", _uiState.value.player1Name.ifEmpty { "Player" })
+                    val p2Name = json.optString("p2_name", _uiState.value.player2Name.ifEmpty { "Opponent" })
                     val reason = json.optString("reason")
                     val outcomeText = json.optString("outcome_text")
                     val p1Delta = json.optInt("p1_delta")
@@ -315,6 +413,8 @@ class GameViewModel : ViewModel(), NetworkMessageListener {
                     val entry = TerminalEntry.RevealOutcome(
                         id = UUID.randomUUID().toString(),
                         winner = winner,
+                        p1Name = p1Name,
+                        p2Name = p2Name,
                         reason = reason,
                         outcomeText = outcomeText,
                         p1Delta = p1Delta,

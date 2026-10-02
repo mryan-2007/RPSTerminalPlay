@@ -16,7 +16,7 @@ enum class PlayerRole {
 data class GameUiState(
     val connectionStatus: ConnectionStatus = ConnectionStatus.DISCONNECTED,
     val serverAddress: String = "ws://127.0.0.1:8765",
-    val localPlayerName: String = "Ryan",
+    val localPlayerName: String = "Player",
     val role: PlayerRole = PlayerRole.UNASSIGNED,
     val isHostMode: Boolean = true,
     val showGuideDialog: Boolean = false,
@@ -25,8 +25,8 @@ data class GameUiState(
     // Match Info
     val stateName: String = "WAITING_FOR_PLAYERS",
     val roundNumber: Int = 1,
-    val player1Name: String = "Player 1",
-    val player2Name: String = "Player 2",
+    val player1Name: String = "",
+    val player2Name: String = "",
     val player1Score: Int = 50,
     val player2Score: Int = 50,
     val player1Ready: Boolean = false,
@@ -44,6 +44,7 @@ data class GameUiState(
 
     // Input prompt state
     val inputText: String = "",
+    val replyingTo: TerminalEntry.Chat? = null,
     val errorMessage: String? = null
 ) {
     val isLocalReady: Boolean
