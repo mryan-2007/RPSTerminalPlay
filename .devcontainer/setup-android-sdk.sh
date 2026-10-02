@@ -82,7 +82,12 @@ if [ -d "$PROJECT_DIR" ] && [ "$PROJECT_DIR" != "/app/applet" ]; then
     echo "Created $PROJECT_DIR/local.properties pointing to $SDK_DIR"
 fi
 
-# 7. Make gradlew executable
+# 7. Restore debug.keystore and make gradlew executable
+if [ -f "$PROJECT_DIR/debug.keystore.base64" ] && [ ! -f "$PROJECT_DIR/debug.keystore" ]; then
+    echo "Restoring debug.keystore..."
+    base64 -d "$PROJECT_DIR/debug.keystore.base64" > "$PROJECT_DIR/debug.keystore"
+fi
+
 if [ -f "$PROJECT_DIR/gradlew" ]; then
     chmod +x "$PROJECT_DIR/gradlew"
 fi
