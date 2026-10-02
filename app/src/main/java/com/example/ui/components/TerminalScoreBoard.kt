@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,18 +22,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.model.ConnectionStatus
 import com.example.model.GameUiState
 import com.example.model.PlayerRole
 import com.example.ui.theme.CyberCyan
 import com.example.ui.theme.PhosphorGreen
 import com.example.ui.theme.TerminalAmber
 import com.example.ui.theme.TerminalBorder
-import com.example.ui.theme.TerminalBorderHighlight
 import com.example.ui.theme.TerminalCardBg
-import com.example.ui.theme.TerminalCrimson
 import com.example.ui.theme.TerminalDarkSurface
 import com.example.ui.theme.TerminalTextMuted
 import com.example.ui.theme.TerminalTextPrimary
@@ -45,6 +42,57 @@ fun TerminalScoreBoard(
     uiState: GameUiState,
     modifier: Modifier = Modifier
 ) {
+    // 1. If disconnected or not in a game yet: Don't show score boxes! (Pure terminal clean screen)
+    if (uiState.connectionStatus == ConnectionStatus.DISCONNECTED) {
+        return
+    }
+
+    // 2. If connecting: show connecting banner
+    if (uiState.connectionStatus == ConnectionStatus.CONNECTING) {
+        Box(
+            modifier = modifier
+                .fillMaxWidth()
+                .background(TerminalDarkSurface)
+                .border(width = 1.dp, color = TerminalBorder)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "[ ⏳ CONNECTING TO NETWORK... ]",
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = CyberCyan
+            )
+        }
+        return
+    }
+
+    val isWaitingForSecondPlayer = uiState.player2Name.isBlank() ||
+            uiState.player2Name.equals("Waiting...", ignoreCase = true)
+
+    // 3. If only one player is connected: show waiting banner without full score boxes
+    if (isWaitingForSecondPlayer) {
+        Box(
+            modifier = modifier
+                .fillMaxWidth()
+                .background(TerminalDarkSurface)
+                .border(width = 1.dp, color = TerminalBorder)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "[ ⚡ WAITING FOR OPPONENT TO CONNECT... ]",
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = TerminalAmber
+            )
+        }
+        return
+    }
+
+    // 4. When both players are connected: Show full score boxes with their actual names (NO Player 1 / Player 2)
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -54,14 +102,14 @@ fun TerminalScoreBoard(
             .testTag("terminal_scoreboard")
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            // ASCII Top line with Title
+            // ASCII Top line with Round & State
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "SCORE // ROUND ${uiState.roundNumber}",
+                    text = "BATTLE // ROUND ${uiState.roundNumber}",
                     fontFamily = FontFamily.Monospace,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
@@ -83,21 +131,20 @@ fun TerminalScoreBoard(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Score Row: P1 vs P2
+            // Score Row: Player 1 vs Player 2 (using their real names!)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Player 1 (Host / Left box)
+                // First Player box
                 PlayerScoreCard(
-                    playerName = uiState.player1Name,
-                    roleLabel = "PLAYER 1",
+                    playerName = uiState.player1Name.ifBlank { "Host" },
                     score = uiState.player1Score,
                     isReady = uiState.player1Ready,
                     isLocked = uiState.player1Locked,
                     wagerRank = uiState.player1Rank?.code,
-                    isLocal = uiState.role == PlayerRole.PLAYER1,
+                    isLocal = uiState.role == PlayerRole.PLAYER1 || uiState.localPlayerName == uiState.player1Name,
                     modifier = Modifier.weight(1f)
                 )
 
@@ -115,15 +162,14 @@ fun TerminalScoreBoard(
                     )
                 }
 
-                // Player 2 (Client / Right box)
+                // Second Player box
                 PlayerScoreCard(
-                    playerName = uiState.player2Name,
-                    roleLabel = "PLAYER 2",
+                    playerName = uiState.player2Name.ifBlank { "Opponent" },
                     score = uiState.player2Score,
                     isReady = uiState.player2Ready,
                     isLocked = uiState.player2Locked,
                     wagerRank = uiState.player2Rank?.code,
-                    isLocal = uiState.role == PlayerRole.PLAYER2,
+                    isLocal = uiState.role == PlayerRole.PLAYER2 || uiState.localPlayerName == uiState.player2Name,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -134,7 +180,6 @@ fun TerminalScoreBoard(
 @Composable
 private fun PlayerScoreCard(
     playerName: String,
-    roleLabel: String,
     score: Int,
     isReady: Boolean,
     isLocked: Boolean,
@@ -175,6 +220,7 @@ private fun PlayerScoreCard(
                         text = "(YOU)",
                         fontFamily = FontFamily.Monospace,
                         fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
                         color = PhosphorGreen
                     )
                 }
@@ -182,7 +228,7 @@ private fun PlayerScoreCard(
 
             Spacer(modifier = Modifier.height(2.dp))
 
-            // Score Display
+            // Score Display & Status
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,

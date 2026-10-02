@@ -58,7 +58,7 @@ fun ServerConnectDialog(
     initialAddress: String,
     initialPlayerName: String,
     onConnectTermux: (address: String, name: String) -> Unit,
-    onStartLocalEngine: () -> Unit,
+    onStartLocalEngine: (name: String) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -242,7 +242,7 @@ fun ServerConnectDialog(
                         .background(CyberCyan.copy(alpha = 0.15f))
                         .border(1.dp, CyberCyan, RoundedCornerShape(4.dp))
                         .clickable {
-                            onStartLocalEngine()
+                            onStartLocalEngine(playerName)
                             onDismiss()
                         }
                         .padding(10.dp)

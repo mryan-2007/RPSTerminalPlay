@@ -4,7 +4,6 @@ import com.example.model.CardCounts
 import com.example.model.CardType
 import com.example.model.WagerRank
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -12,31 +11,34 @@ import org.json.JSONObject
 import kotlin.random.Random
 
 /**
- * Embedded authoritative Game Engine running locally on device.
- * Enforces the exact same state machine, rules, wagers, and reveal sequence
- * as the Termux Python server.
+ * Local battle engine running entirely on-device.
+ * Simulates an authentic game server with bot opponent, individual wagers,
+ * and aesthetic compact reveals.
  */
 class LocalGameEngine(
+    val localPlayerName: String = "Player",
+    val opponentName: String = "Bot",
     private val scope: CoroutineScope,
     private val onMessageToClient: (String) -> Unit
 ) {
+    private var state = "WAITING_FOR_START"
+    private var roundNumber = 1
     private var p1Score = 50
     private var p2Score = 50
+
     private var p1Cards = CardCounts(2, 2, 2)
     private var p2Cards = CardCounts(2, 2, 2)
 
-    private var p1Ready = false
-    private var p2Ready = false
-
-    private var p1PendingCard: CardType? = null
     private var p1ChosenCard: CardType? = null
     private var p1ChosenRank: WagerRank? = null
+    private var p1PendingCard: CardType? = null
 
     private var p2ChosenCard: CardType? = null
     private var p2ChosenRank: WagerRank? = null
 
-    private var roundNumber = 1
-    private var state = "WAITING_FOR_START"
+    private var p1Ready = false
+    private var p2Ready = false
+
     private var activeSequenceJob: Job? = null
 
     init {
@@ -48,14 +50,14 @@ class LocalGameEngine(
             put("type", "handshake_ack")
             put("player_id", "p_host")
             put("role", "player1")
-            put("name", "Ryan")
+            put("name", localPlayerName)
             put("status", "connected")
         }
         onMessageToClient(handshakeAck.toString())
 
         val welcomeMsg = JSONObject().apply {
             put("type", "system")
-            put("text", "[SYSTEM] Connected to Local Battle Engine.\n[SYSTEM] Player 2 (Friend) connected.\n[SYSTEM] Type /start when ready.")
+            put("text", "[SYSTEM] Connected to Local Battle Engine.\n[SYSTEM] $opponentName is ready.\n[SYSTEM] Type /start to begin Round 1.")
             put("level", "success")
         }
         onMessageToClient(welcomeMsg.toString())
@@ -78,7 +80,7 @@ class LocalGameEngine(
                     put("type", "chat")
                     put("sender_id", "p_host")
                     put("sender_role", "player1")
-                    put("sender_name", "Ryan")
+                    put("sender_name", localPlayerName)
                     put("text", clean)
                 }
                 onMessageToClient(chatMsg.toString())
@@ -90,18 +92,18 @@ class LocalGameEngine(
                         val replies = listOf(
                             "Let's see what you've got!",
                             "I'm ready when you are.",
-                            "Gamble high if you dare.",
+                            "Choose your rank wisely.",
                             "May the best RPS strategist win.",
                             "Locked and loaded."
                         )
-                        val friendChat = JSONObject().apply {
+                        val opponentChat = JSONObject().apply {
                             put("type", "chat")
-                            put("sender_id", "p_friend")
+                            put("sender_id", "p_opp")
                             put("sender_role", "player2")
-                            put("sender_name", "Friend")
+                            put("sender_name", opponentName)
                             put("text", replies.random())
                         }
-                        onMessageToClient(friendChat.toString())
+                        onMessageToClient(opponentChat.toString())
                     }
                 }
             }
@@ -109,38 +111,37 @@ class LocalGameEngine(
     }
 
     private fun handleConversationalSelection(text: String): Boolean {
-        if (state != "WAITING_FOR_CHOICES" || p1ChosenCard != null) {
-            return false
-        }
+        if (state != "WAITING_FOR_CHOICES") return false
+        if (p1ChosenCard != null) return false
 
-        val parts = text.split("\\s+".toRegex())
+        val parts = text.split("\\s+".toRegex()).filter { it.isNotBlank() }
 
-        // Case 1: Both card + rank entered at once (e.g. "rock A")
+        // Combined: e.g. "rock A", "r A", "p S", "s C"
         if (parts.size == 2) {
-            val c = CardType.fromString(parts[0])
-            val r = WagerRank.fromString(parts[1])
-            if (c != null && r != null) {
-                handleChoose(parts[0], parts[1])
+            val card = CardType.fromString(parts[0])
+            val rank = WagerRank.fromString(parts[1])
+            if (card != null && rank != null) {
+                lockLocalChoice(card, rank)
                 return true
             }
         }
 
-        // Case 2: Just card entered (e.g. "rock", "paper", "scissors")
+        // Just card: e.g. "rock", "r", "paper", "p", "scissors", "s"
         if (parts.size == 1) {
             val card = CardType.fromString(parts[0])
             if (card != null) {
                 if (!p1Cards.hasAny(card)) {
-                    sendSystem("[SYSTEM] You have no remaining ${card.displayName} cards! Choose from available cards.", "danger")
+                    sendSystem("[SYSTEM] No remaining ${card.displayName} cards! Choose from available cards.", "danger")
                     return true
                 }
                 p1PendingCard = card
                 sendSystem(
                     "[CARD SELECTED: ${card.displayName}]\n" +
-                    "Now choose a wager rank:\n" +
-                    "  C  (3 points)   - Minimal risk\n" +
-                    "  B  (7 points)   - Standard wager\n" +
-                    "  A  (15 points)  - High stakes\n" +
-                    "  S  (25 points)  - Supreme gamble\n" +
+                    "Now choose your wager rank:\n" +
+                    "  [C]  3 pts   - Minimal risk\n" +
+                    "  [B]  7 pts   - Normal wager\n" +
+                    "  [A]  15 pts  - High stakes\n" +
+                    "  [S]  25 pts  - Supreme gamble\n" +
                     "Type: C, B, A, or S (Your score: $p1Score)",
                     "info"
                 )
@@ -148,12 +149,13 @@ class LocalGameEngine(
             }
         }
 
-        // Case 3: Card was previously chosen, now entering rank (e.g. "A", "B", "C", "S")
+        // Just rank after card is selected
         if (parts.size == 1 && p1PendingCard != null) {
             val rank = WagerRank.fromString(parts[0])
             if (rank != null) {
-                handleChoose(p1PendingCard!!.code, parts[0])
+                val card = p1PendingCard!!
                 p1PendingCard = null
+                lockLocalChoice(card, rank)
                 return true
             }
         }
@@ -161,51 +163,43 @@ class LocalGameEngine(
         return false
     }
 
-    private fun handleCommand(cmdText: String) {
-        val parts = cmdText.split("\\s+".toRegex())
-        val cmd = parts[0].lowercase()
+    private fun handleCommand(cmd: String) {
+        val parts = cmd.trim().split("\\s+".toRegex())
+        val action = parts[0].lowercase()
 
-        when (cmd) {
+        when (action) {
             "/start" -> handleStart()
             "/cards" -> handleCards()
-            "/choose", "/play" -> {
-                if (parts.size < 3) {
-                    sendSystem("[SYSTEM] Usage: /choose <card> <rank>\nExample: /choose rock A\nRanks: C (3), B (7), A (15), S (25)", "warning")
-                    return
+            "/choose" -> {
+                if (parts.size >= 3) {
+                    val card = CardType.fromString(parts[1])
+                    val rank = WagerRank.fromString(parts[2])
+                    if (card != null && rank != null) {
+                        lockLocalChoice(card, rank)
+                    } else {
+                        sendSystem("[SYSTEM] Usage: /choose <rock|paper|scissors|r|p|s> <C|B|A|S>", "danger")
+                    }
+                } else {
+                    sendSystem("[SYSTEM] Usage: /choose <rock|paper|scissors|r|p|s> <C|B|A|S>", "danger")
                 }
-                handleChoose(parts[1], parts[2])
             }
-            "/clear" -> {
-                val clearMsg = JSONObject().apply {
-                    put("type", "clear")
-                    put("text", "[SYSTEM] Terminal cleared.")
-                }
-                onMessageToClient(clearMsg.toString())
-            }
-            "/help" -> handleHelp()
             "/status" -> handleStatus()
-            else -> {
-                sendSystem("[SYSTEM] Unknown command '$cmd'. Type /help for available commands.", "danger")
-            }
+            "/help" -> handleHelp()
+            else -> sendSystem("[SYSTEM] Unknown command '$action'. Type /help for assistance.", "warning")
         }
     }
 
     private fun handleStart() {
         if (state !in listOf("WAITING_FOR_START", "NEXT_ROUND", "CONNECTED")) {
-            sendSystem("[SYSTEM] Round already in progress.", "warning")
+            sendSystem("[SYSTEM] Round already active (State: $state).", "warning")
             return
         }
 
         p1Ready = true
-        sendSystem("[SYSTEM] PLAYER 1 (You) is ready.", "info")
+        p2Ready = true
+        sendSystem("[SYSTEM] Both players ready. Starting Round $roundNumber!", "info")
 
-        syncState()
-
-        // Friend also readies up after short delay
         scope.launch {
-            delay(800)
-            p2Ready = true
-            sendSystem("[SYSTEM] PLAYER 2 (Friend) is ready.", "info")
             delay(500)
             startRound()
         }
@@ -213,108 +207,85 @@ class LocalGameEngine(
 
     private fun startRound() {
         state = "WAITING_FOR_CHOICES"
-        p1PendingCard = null
         p1ChosenCard = null
         p1ChosenRank = null
+        p1PendingCard = null
         p2ChosenCard = null
         p2ChosenRank = null
 
-        val banner = """
-========================================
-   ROUND $roundNumber STARTING
-   BOTH PLAYERS READY
-========================================
-""".trimIndent()
+        val banner = "\n════════════════════════════════════════\n" +
+                     "           ROUND $roundNumber STARTING\n" +
+                     "════════════════════════════════════════"
         sendSystem(banner, "success")
 
-        val promptCards = """
-YOUR AVAILABLE CARDS:
-${formatCardsBracket(p1Cards)}
-
-Type the card you want to play: rock, paper, or scissors
-(Or enter both: e.g. rock A)
-""".trimIndent()
-        sendSystem(promptCards, "cards_display")
+        val promptMsg = "YOUR AVAILABLE CARDS:\n" +
+                        "${formatCardsBracket()}\n\n" +
+                        "Type card: r (rock), p (paper), s (scissors)\n" +
+                        "Or combined: e.g. 'r A' or 'rock B'"
+        sendSystem(promptMsg, "cards")
 
         syncState()
 
-        // Friend decides their card and rank after short delay
+        // Simulate opponent choice with smart delay
+        simulateOpponentChoice()
+    }
+
+    private fun formatCardsBracket(): String {
+        val parts = mutableListOf<String>()
+        repeat(p1Cards.rock) { parts.add("[ROCK]") }
+        repeat(p1Cards.paper) { parts.add("[PAPER]") }
+        repeat(p1Cards.scissors) { parts.add("[SCISSORS]") }
+        return if (parts.isEmpty()) "[NO CARDS]" else parts.joinToString(" ")
+    }
+
+    private fun simulateOpponentChoice() {
         scope.launch {
             delay(Random.nextLong(1500, 3000))
-            pickFriendChoice()
+            if (state != "WAITING_FOR_CHOICES") return@launch
+
+            val availableTypes = mutableListOf<CardType>()
+            if (p2Cards.rock > 0) availableTypes.add(CardType.ROCK)
+            if (p2Cards.paper > 0) availableTypes.add(CardType.PAPER)
+            if (p2Cards.scissors > 0) availableTypes.add(CardType.SCISSORS)
+
+            val chosenType = if (availableTypes.isNotEmpty()) availableTypes.random() else CardType.ROCK
+
+            val affordableRanks = WagerRank.entries.filter { it.points <= p2Score }
+            val chosenRank = if (affordableRanks.isNotEmpty()) affordableRanks.random() else WagerRank.C
+
+            p2ChosenCard = chosenType
+            p2ChosenRank = chosenRank
+
+            when (chosenType) {
+                CardType.ROCK -> p2Cards = p2Cards.copy(rock = (p2Cards.rock - 1).coerceAtLeast(0))
+                CardType.PAPER -> p2Cards = p2Cards.copy(paper = (p2Cards.paper - 1).coerceAtLeast(0))
+                CardType.SCISSORS -> p2Cards = p2Cards.copy(scissors = (p2Cards.scissors - 1).coerceAtLeast(0))
+            }
+
+            sendSystem("[SYSTEM] $opponentName locked card: [ ??????  ${chosenRank.code} ]", "info")
+            syncState()
+
+            checkBothLocked()
         }
     }
 
-    private fun formatCardsBracket(deck: CardCounts): String {
-        val lines = mutableListOf<String>()
-        lines.add(if (deck.rock > 0) List(deck.rock) { "[ROCK]" }.joinToString(" ") else "[ROCK] (EMPTY)")
-        lines.add(if (deck.paper > 0) List(deck.paper) { "[PAPER]" }.joinToString(" ") else "[PAPER] (EMPTY)")
-        lines.add(if (deck.scissors > 0) List(deck.scissors) { "[SCISSORS]" }.joinToString(" ") else "[SCISSORS] (EMPTY)")
-        return lines.joinToString("\n")
-    }
-
-    private fun pickFriendChoice() {
-        val available = mutableListOf<CardType>()
-        if (p2Cards.rock > 0) available.add(CardType.ROCK)
-        if (p2Cards.paper > 0) available.add(CardType.PAPER)
-        if (p2Cards.scissors > 0) available.add(CardType.SCISSORS)
-
-        if (available.isEmpty()) {
-            p2Cards = CardCounts(2, 2, 2)
-            available.addAll(listOf(CardType.ROCK, CardType.PAPER, CardType.SCISSORS))
-        }
-
-        val chosenType = available.random()
-        // Choose affordable rank
-        val affordableRanks = WagerRank.entries.filter { it.points <= p2Score }
-        val chosenRank = if (affordableRanks.isNotEmpty()) affordableRanks.random() else WagerRank.C
-
-        p2ChosenCard = chosenType
-        p2ChosenRank = chosenRank
-
-        // Remove card from friend inventory
-        p2Cards = when (chosenType) {
-            CardType.ROCK -> p2Cards.copy(rock = p2Cards.rock - 1)
-            CardType.PAPER -> p2Cards.copy(paper = p2Cards.paper - 1)
-            CardType.SCISSORS -> p2Cards.copy(scissors = p2Cards.scissors - 1)
-        }
-
-        // Send masked indicator: opponent sees rank only, card hidden!
-        sendSystem("[SYSTEM] PLAYER 2 locked card: [ ??????  ${chosenRank.code} ]", "info")
-        syncState()
-
-        checkBothLocked()
-    }
-
-    private fun handleChoose(cardStr: String, rankStr: String) {
+    private fun lockLocalChoice(cardType: CardType, rank: WagerRank) {
         if (state != "WAITING_FOR_CHOICES") {
-            sendSystem("[SYSTEM] No active round for choosing.\nUse /start when ready.", "warning")
+            sendSystem("[SYSTEM] No active round. Type /start when ready.", "warning")
             return
         }
 
         if (p1ChosenCard != null) {
-            sendSystem("[SYSTEM] You already locked in your card for this round.", "warning")
-            return
-        }
-
-        val cardType = CardType.fromString(cardStr)
-        if (cardType == null) {
-            sendSystem("[SYSTEM] Invalid card '$cardStr'. Choose from: rock, paper, scissors.", "danger")
-            return
-        }
-
-        val rank = WagerRank.fromString(rankStr)
-        if (rank == null) {
-            sendSystem("[SYSTEM] Invalid rank '$rankStr'. Available: C (3pts), B (7pts), A (15pts), S (25pts).", "danger")
+            sendSystem("[SYSTEM] You already locked your card for this round.", "warning")
             return
         }
 
         if (!p1Cards.hasAny(cardType)) {
-            sendSystem("[SYSTEM] You have no remaining ${cardType.displayName} cards! Check /cards.", "danger")
+            sendSystem("[SYSTEM] You have no remaining ${cardType.displayName} cards!", "danger")
             return
         }
 
-        if (p1Score < rank.points) {
+        if (rank.points > p1Score) {
             sendSystem("[SYSTEM] Cannot afford wager ${rank.code} (${rank.points} pts)! Your score is $p1Score.", "danger")
             return
         }
@@ -322,11 +293,10 @@ Type the card you want to play: rock, paper, or scissors
         p1ChosenCard = cardType
         p1ChosenRank = rank
 
-        // Deduct card
-        p1Cards = when (cardType) {
-            CardType.ROCK -> p1Cards.copy(rock = p1Cards.rock - 1)
-            CardType.PAPER -> p1Cards.copy(paper = p1Cards.paper - 1)
-            CardType.SCISSORS -> p1Cards.copy(scissors = p1Cards.scissors - 1)
+        when (cardType) {
+            CardType.ROCK -> p1Cards = p1Cards.copy(rock = p1Cards.rock - 1)
+            CardType.PAPER -> p1Cards = p1Cards.copy(paper = p1Cards.paper - 1)
+            CardType.SCISSORS -> p1Cards = p1Cards.copy(scissors = p1Cards.scissors - 1)
         }
 
         sendSystem("[SYSTEM] Card locked: [${cardType.displayName}    ${rank.code}] (Wager: ${rank.points} pts)", "success")
@@ -347,67 +317,58 @@ Type the card you want to play: rock, paper, or scissors
         activeSequenceJob?.cancel()
         activeSequenceJob = scope.launch {
             state = "REVEAL"
-            sendSystem("\n[SYSTEM] BOTH PLAYERS LOCKED.", "info")
+            sendSystem("\n[SYSTEM] BOTH CARDS LOCKED.", "info")
 
-            delay(900)
-            sendSystem("        3...", "countdown")
-            delay(900)
-            sendSystem("        2...", "countdown")
-            delay(900)
-            sendSystem("        1...", "countdown")
-            delay(900)
-            sendSystem("        REVEAL!", "highlight")
-            delay(500)
+            // Compact aesthetic countdown
+            delay(400)
+            sendSystem("[ 3 • 2 • 1 • REVEAL! ]", "highlight")
+            delay(400)
 
             val p1Card = p1ChosenCard ?: CardType.ROCK
             val p1Rk = p1ChosenRank ?: WagerRank.C
             val p2Card = p2ChosenCard ?: CardType.ROCK
             val p2Rk = p2ChosenRank ?: WagerRank.C
 
-            // Visual ASCII cards
-            val ascii = """
-   PLAYER 1 (Ryan)
-   ┌───────────┐
-   │ ${p1Card.displayName.padEnd(7)} ${p1Rk.code} │
-   └───────────┘
-        VS
-   PLAYER 2 (Friend)
-   ┌───────────┐
-   │ ${p2Card.displayName.padEnd(7)} ${p2Rk.code} │
-   └───────────┘
-""".trimIndent()
-
+            // Compact aesthetic duel box
+            val ascii = "┌──────────────────────────────────────────────┐\n" +
+                        "│  $localPlayerName: [${p1Card.displayName} · ${p1Rk.code}]  ⚔️  $opponentName: [${p2Card.displayName} · ${p2Rk.code}] │\n" +
+                        "└──────────────────────────────────────────────┘"
             sendSystem(ascii, "card_box")
 
             // Determine winner
             val winner = determineWinner(p1Card, p2Card)
-            var p1Delta = 0
-            var p2Delta = 0
+            val p1Delta: Int
+            val p2Delta: Int
             val outcomeText: String
             val reason: String
 
             if (winner == 0) {
-                reason = "BOTH PLAYED ${p1Card.displayName}. IT'S A DRAW!"
-                outcomeText = "[SYSTEM] $reason\n[SYSTEM] DRAW! Wagers returned to both players."
+                p1Delta = 0
+                p2Delta = 0
+                reason = "BOTH CHOSE ${p1Card.displayName}. IT'S A TIE!"
+                outcomeText = "[SYSTEM] $reason\n[SYSTEM] DRAW! Wagers returned (0 pts)."
             } else if (winner == 1) {
-                p1Delta = p2Rk.points
+                // Each player's score changes strictly by their OWN chosen wager
+                p1Delta = p1Rk.points
                 p2Delta = -p2Rk.points
                 p1Score += p1Delta
                 p2Score += p2Delta
-                reason = "${p1Card.displayName} BEATS ${p2Card.displayName}!"
-                outcomeText = "[SYSTEM] $reason\n[SYSTEM] PLAYER 1 WINS!\n[SYSTEM] Ryan +$p1Delta | Friend $p2Delta"
+                reason = "${p1Card.displayName} CRUSHES ${p2Card.displayName}!"
+                outcomeText = "[SYSTEM] $reason\n[SYSTEM] $localPlayerName WINS!\n[SYSTEM] $localPlayerName +$p1Delta | $opponentName $p2Delta"
             } else {
                 p1Delta = -p1Rk.points
-                p2Delta = p1Rk.points
+                p2Delta = p2Rk.points
                 p1Score += p1Delta
                 p2Score += p2Delta
-                reason = "${p2Card.displayName} BEATS ${p1Card.displayName}!"
-                outcomeText = "[SYSTEM] $reason\n[SYSTEM] PLAYER 2 WINS!\n[SYSTEM] Friend +$p2Delta | Ryan $p1Delta"
+                reason = "${p2Card.displayName} CRUSHES ${p1Card.displayName}!"
+                outcomeText = "[SYSTEM] $reason\n[SYSTEM] $opponentName WINS!\n[SYSTEM] $opponentName +$p2Delta | $localPlayerName $p1Delta"
             }
 
             // Structured reveal payload
             val revealPayload = JSONObject().apply {
                 put("type", "reveal")
+                put("p1_name", localPlayerName)
+                put("p2_name", opponentName)
                 put("p1_card", p1Card.name)
                 put("p1_rank", p1Rk.code)
                 put("p2_card", p2Card.name)
@@ -451,49 +412,22 @@ Type the card you want to play: rock, paper, or scissors
     }
 
     private fun handleCards() {
-        val lines = mutableListOf<String>()
-        lines.add(if (p1Cards.rock > 0) List(p1Cards.rock) { "[ROCK]" }.joinToString(" ") else "[ROCK] (EMPTY)")
-        lines.add(if (p1Cards.paper > 0) List(p1Cards.paper) { "[PAPER]" }.joinToString(" ") else "[PAPER] (EMPTY)")
-        lines.add(if (p1Cards.scissors > 0) List(p1Cards.scissors) { "[SCISSORS]" }.joinToString(" ") else "[SCISSORS] (EMPTY)")
-
-        sendSystem("YOUR INVENTORY:\n${lines.joinToString("\n")}", "cards_display")
+        val msg = "YOUR AVAILABLE CARDS:\n${formatCardsBracket()}\n" +
+                  "Cards remaining: ${p1Cards.rock} Rock, ${p1Cards.paper} Paper, ${p1Cards.scissors} Scissors."
+        sendSystem(msg, "cards")
     }
 
     private fun handleHelp() {
         val help = """
-========================================
-       AVAILABLE TERMINAL COMMANDS
-========================================
-
-/start
-    Ready yourself for the next round.
-    Both players must type /start.
-
-/cards
-    Display your remaining cards:
-    [ROCK], [PAPER], [SCISSORS]
-
-/choose <card> <rank>
-    Select your card and wager rank.
-    Cards: rock, paper, scissors
-    Ranks:
-      C  (3 points)   - Minimal risk
-      B  (7 points)   - Standard wager
-      A  (15 points)  - High stakes
-      S  (25 points)  - Supreme gamble
-    Aliases: /play <card> <rank>
-    Example: /choose rock A
-
-/clear
-    Clear your visible terminal chat log.
-    (Preserves game state and score)
-
-/help
-    Show this command guide.
-
-/status
-    Display current connection & round info.
-========================================
+[SYSTEM] COMMANDS & SHORTCUTS:
+  r / rock     - Play Rock (🪨 beats ✂️)
+  p / paper    - Play Paper (📄 beats 🪨)
+  s / scissors - Play Scissors (✂️ beats 📄)
+  c, b, a, s   - Choose Wager Rank
+  r A, p B     - Play card & rank combined
+  /start       - Begin the round
+  /cards       - View remaining deck
+  /status      - Game state & scores
 """.trimIndent()
         sendSystem(help, "info")
     }
@@ -501,11 +435,11 @@ Type the card you want to play: rock, paper, or scissors
     private fun handleStatus() {
         val status = """
 [SYSTEM] STATUS:
-  Role: PLAYER 1 (HOST)
-  Opponent: Friend (Online)
-  State: $state
-  Round: $roundNumber
-  Score: Ryan=$p1Score | Friend=$p2Score
+  Player : $localPlayerName
+  Opponent: $opponentName (Local)
+  State   : $state
+  Round   : $roundNumber
+  Score   : $localPlayerName=$p1Score | $opponentName=$p2Score
 """.trimIndent()
         sendSystem(status, "info")
     }
@@ -524,12 +458,12 @@ Type the card you want to play: rock, paper, or scissors
             put("type", "state_sync")
             put("state", state)
             put("round", roundNumber)
-            put("p1_name", "Ryan")
+            put("p1_name", localPlayerName)
             put("p1_score", p1Score)
             put("p1_ready", p1Ready)
             put("p1_locked", p1ChosenCard != null)
             put("p1_rank", p1ChosenRank?.code)
-            put("p2_name", "Friend")
+            put("p2_name", opponentName)
             put("p2_score", p2Score)
             put("p2_ready", p2Ready)
             put("p2_locked", p2ChosenCard != null)

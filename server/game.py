@@ -337,48 +337,31 @@ class RPSGame:
     async def run_reveal_sequence(self):
         """
         Reveal sequence:
-        3...
-        2...
-        1...
-        REVEAL!
-        Displays ASCII card boxes, resolves winner, and updates scores.
+        Compact aesthetic countdown, duel box, and individual chosen wager resolution.
         """
         self.state = STATE_REVEAL
         await self.broadcast({
             "type": "system",
-            "text": "\n[SYSTEM] BOTH PLAYERS LOCKED.",
+            "text": "\n[SYSTEM] BOTH CARDS LOCKED.",
             "level": "info"
         })
 
-        await asyncio.sleep(1.0)
-        await self.broadcast({"type": "system", "text": "        3...", "level": "countdown"})
-        await asyncio.sleep(1.0)
-        await self.broadcast({"type": "system", "text": "        2...", "level": "countdown"})
-        await asyncio.sleep(1.0)
-        await self.broadcast({"type": "system", "text": "        1...", "level": "countdown"})
-        await asyncio.sleep(1.0)
-        await self.broadcast({"type": "system", "text": "        REVEAL!", "level": "highlight"})
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(0.4)
+        await self.broadcast({"type": "system", "text": "[ 3 • 2 • 1 • REVEAL! ]", "level": "highlight"})
+        await asyncio.sleep(0.4)
 
         p1_card = self.player1.chosen_card
         p1_rank = self.player1.chosen_rank
         p2_card = self.player2.chosen_card
         p2_rank = self.player2.chosen_rank
 
-        # Visual ASCII cards
-        ascii_box = (
-            f"\n"
-            f"   PLAYER 1 ({self.player1.name})\n"
-            f"   ┌───────────┐\n"
-            f"   │ {p1_card.display_name:<7} {p1_rank.name} │\n"
-            f"   └───────────┘\n"
-            f"        VS\n"
-            f"   PLAYER 2 ({self.player2.name})\n"
-            f"   ┌───────────┐\n"
-            f"   │ {p2_card.display_name:<7} {p2_rank.name} │\n"
-            f"   └───────────┘\n"
+        # Compact aesthetic duel box
+        duel_box = (
+            f"┌──────────────────────────────────────────────┐\n"
+            f"│  {self.player1.name}: [{p1_card.display_name} · {p1_rank.name}]  ⚔️  {self.player2.name}: [{p2_card.display_name} · {p2_rank.name}] │\n"
+            f"└──────────────────────────────────────────────┘"
         )
-        await self.broadcast({"type": "system", "text": ascii_box, "level": "card_box"})
+        await self.broadcast({"type": "system", "text": duel_box, "level": "card_box"})
 
         # Resolve winner
         winner = determine_winner(p1_card.type, p2_card.type)
@@ -388,31 +371,37 @@ class RPSGame:
         p2_delta = 0
 
         if winner == 0:
-            outcome_msg = f"[SYSTEM] {reason}\n[SYSTEM] DRAW! Wagers returned to both players."
+            outcome_msg = f"[SYSTEM] {reason}\n[SYSTEM] DRAW! Wagers returned (0 pts)."
         elif winner == 1:
-            p1_delta = p2_rank.points
+            p1_delta = p1_rank.points
             p2_delta = -p2_rank.points
             self.player1.score += p1_delta
             self.player2.score += p2_delta
+            p1_sign = "+" if p1_delta >= 0 else ""
+            p2_sign = "+" if p2_delta >= 0 else ""
             outcome_msg = (
                 f"[SYSTEM] {reason}\n"
-                f"[SYSTEM] PLAYER 1 WINS!\n"
-                f"[SYSTEM] Player 1 +{p1_delta} | Player 2 {p2_delta}"
+                f"[SYSTEM] {self.player1.name} WINS!\n"
+                f"[SYSTEM] {self.player1.name} {p1_sign}{p1_delta} | {self.player2.name} {p2_sign}{p2_delta}"
             )
         else:
             p1_delta = -p1_rank.points
-            p2_delta = p1_rank.points
+            p2_delta = p2_rank.points
             self.player1.score += p1_delta
             self.player2.score += p2_delta
+            p1_sign = "+" if p1_delta >= 0 else ""
+            p2_sign = "+" if p2_delta >= 0 else ""
             outcome_msg = (
                 f"[SYSTEM] {reason}\n"
-                f"[SYSTEM] PLAYER 2 WINS!\n"
-                f"[SYSTEM] Player 2 +{p2_delta} | Player 1 {p1_delta}"
+                f"[SYSTEM] {self.player2.name} WINS!\n"
+                f"[SYSTEM] {self.player2.name} {p2_sign}{p2_delta} | {self.player1.name} {p1_sign}{p1_delta}"
             )
 
         # Send structured reveal packet
         await self.broadcast({
             "type": "reveal",
+            "p1_name": self.player1.name,
+            "p2_name": self.player2.name,
             "p1_card": p1_card.type.name,
             "p1_rank": p1_rank.name,
             "p2_card": p2_card.type.name,

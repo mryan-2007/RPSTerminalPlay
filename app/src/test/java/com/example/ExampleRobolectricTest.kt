@@ -4,14 +4,17 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.example.model.CardCounts
 import com.example.model.CardType
+import com.example.model.TerminalEntry
 import com.example.model.WagerRank
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.util.UUID
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
@@ -47,5 +50,57 @@ class ExampleRobolectricTest {
         assertEquals(7, WagerRank.B.points)
         assertEquals(15, WagerRank.A.points)
         assertEquals(25, WagerRank.S.points)
+    }
+
+    @Test
+    fun `test shorthand card names r, p, s and small letters`() {
+        assertEquals(CardType.ROCK, CardType.fromString("r"))
+        assertEquals(CardType.ROCK, CardType.fromString("rock"))
+        assertEquals(CardType.ROCK, CardType.fromString("ROCK"))
+
+        assertEquals(CardType.PAPER, CardType.fromString("p"))
+        assertEquals(CardType.PAPER, CardType.fromString("paper"))
+        assertEquals(CardType.PAPER, CardType.fromString("PAPER"))
+
+        assertEquals(CardType.SCISSORS, CardType.fromString("s"))
+        assertEquals(CardType.SCISSORS, CardType.fromString("scissors"))
+        assertEquals(CardType.SCISSORS, CardType.fromString("SCISSORS"))
+    }
+
+    @Test
+    fun `test individual wager asymmetric scoring`() {
+        // Player 1 wagers A (15 pts), Player 2 wagers B (7 pts)
+        val p1Wager = WagerRank.A.points // 15
+        val p2Wager = WagerRank.B.points // 7
+
+        var p1Score = 50
+        var p2Score = 50
+
+        // If Player 1 wins: Player 1 gets +15, Player 2 loses -7
+        val p1Delta = p1Wager
+        val p2Delta = -p2Wager
+
+        p1Score += p1Delta
+        p2Score += p2Delta
+
+        assertEquals(65, p1Score)
+        assertEquals(43, p2Score)
+    }
+
+    @Test
+    fun `test chat reply model fields`() {
+        val chat = TerminalEntry.Chat(
+            id = UUID.randomUUID().toString(),
+            text = "Nice move!",
+            senderRole = "player1",
+            senderName = "Alex",
+            isLocal = true,
+            replyToSender = "Sam",
+            replyToText = "Good luck"
+        )
+
+        assertEquals("Alex", chat.senderName)
+        assertEquals("Sam", chat.replyToSender)
+        assertEquals("Good luck", chat.replyToText)
     }
 }

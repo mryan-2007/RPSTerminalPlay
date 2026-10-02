@@ -14,6 +14,12 @@ class CardType(Enum):
     @classmethod
     def from_str(cls, val: str) -> Optional['CardType']:
         clean = val.strip().lower()
+        if clean in ("r", "rock"):
+            return CardType.ROCK
+        elif clean in ("p", "paper"):
+            return CardType.PAPER
+        elif clean in ("s", "scissor", "scissors"):
+            return CardType.SCISSORS
         for member in cls:
             if member.value == clean or member.name.lower() == clean:
                 return member

@@ -26,7 +26,7 @@ val PaperColor = Color(0xFF38BDF8)     // Electric Cyan/Blue
 val ScissorsColor = Color(0xFFF43F5E)  // Vivid Crimson/Red
 
 // Wager Rank Colors
-val RankColorC = Color(0xFFF1F5F9)     // C = 3 pts (White/Silver)
-val RankColorB = Color(0xFF00E5FF)     // B = 7 pts (Cyan)
-val RankColorA = Color(0xFFFFD700)     // A = 15 pts (Gold/Yellow)
-val RankColorS = Color(0xFFFF007F)     // S = 25 pts (Neon Magenta/Red)
+val RankColorC = Color(0xFF38BDF8)     // C = 3 pts (Ice Cyan - Minimal Risk)
+val RankColorB = Color(0xFF00E676)     // B = 7 pts (Emerald Green - Standard Wager)
+val RankColorA = Color(0xFFFFB300)     // A = 15 pts (Solar Amber/Gold - High Stakes)
+val RankColorS = Color(0xFFFF1744)     // S = 25 pts (Neon Crimson/Rose - Supreme Gamble)
