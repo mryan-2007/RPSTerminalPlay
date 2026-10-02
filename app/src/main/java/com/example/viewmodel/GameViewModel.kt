@@ -410,6 +410,21 @@ class GameViewModel : ViewModel(), NetworkMessageListener {
                     val p2Delta = json.optInt("p2_delta")
                     val p1Score = json.optInt("p1_score")
                     val p2Score = json.optInt("p2_score")
+                    val p1Card = CardType.fromString(json.optString("p1_card"))
+                    val p1Rank = WagerRank.fromString(json.optString("p1_rank"))
+                    val p2Card = CardType.fromString(json.optString("p2_card"))
+                    val p2Rank = WagerRank.fromString(json.optString("p2_rank"))
+
+                    val cardBoxEntry = TerminalEntry.CardBox(
+                        id = UUID.randomUUID().toString(),
+                        p1Name = p1Name,
+                        p1Card = p1Card,
+                        p1Rank = p1Rank,
+                        p2Name = p2Name,
+                        p2Card = p2Card,
+                        p2Rank = p2Rank,
+                        isRevealed = true
+                    )
                     val entry = TerminalEntry.RevealOutcome(
                         id = UUID.randomUUID().toString(),
                         winner = winner,
@@ -424,7 +439,7 @@ class GameViewModel : ViewModel(), NetworkMessageListener {
                     )
                     _uiState.update {
                         it.copy(
-                            terminalEntries = it.terminalEntries + entry,
+                            terminalEntries = it.terminalEntries + cardBoxEntry + entry,
                             player1Score = p1Score,
                             player2Score = p2Score
                         )
