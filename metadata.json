@@ -1,0 +1,6 @@
+{
+  "name": "RPS Terminal Battle",
+  "description": "Multiplayer Rock-Paper-Scissors terminal battle game with Termux server support, wagers, and cyberpunk console UI.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
