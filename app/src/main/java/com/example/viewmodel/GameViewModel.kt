@@ -315,29 +315,29 @@ class GameViewModel : ViewModel(), NetworkMessageListener {
                         )
                     }
                 }
-                "chat" -> {
-                    val text = json.optString("text")
-                    val senderRole = json.optString("sender_role")
-                    val senderName = json.optString("sender_name", "Player")
-                    val isLocal = when (_uiState.value.role) {
-                        PlayerRole.PLAYER1 -> senderRole == "player1"
-                        PlayerRole.PLAYER2 -> senderRole == "player2"
-                        else -> senderName == _uiState.value.localPlayerName
-                    }
-                    val replyToSender = json.optString("reply_to_sender", "").ifEmpty { null }
-                    val replyToText = json.optString("reply_to_text", "").ifEmpty { null }
-
-                    val entry = TerminalEntry.Chat(
+                "card_box" -> {
+                    val p1Name = json.optString("p1_name",
+                        _uiState.value.player1Name.ifEmpty { "Player" })
+                    val p2Name = json.optString("p2_name",
+                     _uiState.value.player2Name.ifEmpty { "Opponent" })
+                    val p1Card = CardType.fromString(json.optString("p1_card"))
+                    val p1Rank = WagerRank.fromString(json.optString("p1_rank"))
+                    val p2Card = CardType.fromString(json.optString("p2_card"))
+                    val p2Rank = WagerRank.fromString(json.optString("p2_rank"))
+                    val entry = TerminalEntry.CardBox(
                         id = UUID.randomUUID().toString(),
-                        text = text,
-                        senderRole = senderRole,
-                        senderName = senderName,
-                        isLocal = isLocal,
-                        replyToSender = replyToSender,
-                        replyToText = replyToText
-                    )
-                    _uiState.update { it.copy(terminalEntries = it.terminalEntries + entry) }
-                }
+                        p1Name = p1Name,
+                        p1Card = p1Card,
+                        p1Rank = p1Rank,
+                        p2Name = p2Name,
+                        p2Card = p2Card,
+                        p2Rank = p2Rank,
+                        isRevealed = json.optBoolean("is_revealed", true))
+
+                    _uiState.update {
+                        it.copy(terminalEntries = it.terminalEntries + entry)
+                    }
+                }                       
                 "system" -> {
                     val text = json.optString("text")
                     val levelStr = json.optString("level", "info")
