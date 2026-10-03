@@ -94,6 +94,12 @@ fun TerminalMessageItem(
                 modifier = modifier
             )
         }
+        is TerminalEntry.Countdown -> {
+            CountdownLogItem(
+                entry = entry,
+                modifier = modifier
+            )
+        }
         is TerminalEntry.CardBox -> {
             CardBoxRevealItem(
                 entry = entry,
@@ -307,6 +313,37 @@ private fun SystemLogItem(
         )
     }
 }
+
+@Composable
+private fun CountdownLogItem(
+    entry: TerminalEntry.Countdown,
+    modifier: Modifier = Modifier
+) {
+    val tintColor = when (entry.level) {
+        SystemLevel.COUNTDOWN -> PhosphorGreen
+        SystemLevel.WARNING -> TerminalAmber
+        SystemLevel.DANGER -> TerminalCrimson
+        SystemLevel.HIGHLIGHT -> Color(0xFF9B7BFF)
+        else -> TerminalTextPrimary
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(30.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = entry.text,
+            fontFamily = FontFamily.Monospace,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            color = tintColor,
+            letterSpacing = 1.sp
+        )
+    }
+}
+
 
 /**
  * Parses tokens like [ROCK], [PAPER], [SCISSORS], [C], [B], [A], [S]
