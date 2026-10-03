@@ -315,7 +315,48 @@ class GameViewModel : ViewModel(), NetworkMessageListener {
                         )
                     }
                 }
-                "card_box" -> { }                       
+                "card_box" -> { }  
+
+                "countdown" -> {
+                    val text = json.optString("text")
+                    val levelStr = json.optString("level")
+
+                    val level = when (levelStr) {
+                        "countdown_3" -> SystemLevel.COUNTDOWN
+                        "countdown_2" -> SystemLevel.WARNING
+                        "countdown_1" -> SystemLevel.DANGER
+                        "countdown_reveal" -> SystemLevel.HIGHLIGHT
+                        else -> SystemLevel.INFO
+                    }
+
+                    _uiState.update { state ->
+                        val entries = state.terminalEntries.toMutableList()
+
+                        val existingIndex = entries.indexOfLast {
+                            it is TerminalEntry.Countdown
+                        }
+
+                        if (existingIndex >= 0) {
+                            val existing = entries[existingIndex] as TerminalEntry.Countdown
+
+                            entries[existingIndex] = existing.copy(
+                                text = text,
+                                level = level
+                            )
+                        } else {
+                            entries.add(
+                                TerminalEntry.Countdown(
+                                    id = UUID.randomUUID().toString(),
+                                    text = text,
+                                    level = level
+                                )
+                            )
+                        }
+
+                        state.copy(terminalEntries = entries)
+                    }
+                }
+                
                 "system" -> {
                     val text = json.optString("text")
                     val levelStr = json.optString("level", "info")
