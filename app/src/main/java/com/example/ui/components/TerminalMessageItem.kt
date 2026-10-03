@@ -564,11 +564,7 @@ LaunchedEffect(cardType, rank, isRevealed) {
     // ------------------------------------------------
     // Reveal one character at a time.
     for (revealedCount in 1..target.length) {
-
-        val revealedPart = target.take(revealedCount)
-
-        repeat(5) {
-
+        repeat(7) {
             val scrambledPart = buildString {
                 repeat(target.length - revealedCount) {
                     append(
@@ -581,12 +577,12 @@ LaunchedEffect(cardType, rank, isRevealed) {
                 }
             }
 
-        displayedCard = revealedPart + scrambledPart
-        revealStage = 2
+            displayedCard = target.take(revealedCount) + scrambledPart
+            revealStage = 2
 
-        delay(90)
+            delay(85)
         }
-     }
+    }
 
         displayedCard = revealedPart + hiddenPart
         revealStage = 2
