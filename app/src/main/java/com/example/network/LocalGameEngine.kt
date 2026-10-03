@@ -468,6 +468,15 @@ onMessageToClient(cardBoxPayload.toString())
         onMessageToClient(json.toString())
     }
 
+    private fun sendCountdown(text: String, level: String) {
+        val json = JSONObject().apply {
+            put("type", "countdown")
+            put("text", text)
+            put("level", level)
+        }
+        onMessageToClient(json.toString())
+    }
+
     private fun syncState() {
         val json = JSONObject().apply {
             put("type", "state_sync")
