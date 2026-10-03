@@ -544,7 +544,7 @@ fun CompactDuelCard(
             modifier = Modifier
                 .clip(RoundedCornerShape(4.dp))
                 .background(TerminalCardBg)
-                .border(1.dp, rankColor, RoundedCornerShape(4.dp))
+                .border(1.dp, Color(0xFF9EA7AD), RoundedCornerShape(4.dp))
                 .padding(horizontal = 8.dp, vertical = 4.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
