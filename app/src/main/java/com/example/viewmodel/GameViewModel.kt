@@ -542,17 +542,25 @@ class GameViewModel : ViewModel(), NetworkMessageListener {
                     revealResultJob?.cancel()
 
                     revealResultJob = viewModelScope.launch {
-                    // 650 ms hidden
-                    // 550 ms wager
-                    // 2400 ms card reveal
-                    // 180 ms final settle
-                    // -----------------
-                    // 3780 ms total
                         delay(3780)
 
-                        _uiState.update {
-                            it.copy(
-                                terminalEntries = it.terminalEntries + entry
+                        _uiState.update { state ->
+
+                            val updatedEntries = state.terminalEntries.map { terminalEntry ->
+                                if (
+                                    terminalEntry is TerminalEntry.CardBox &&
+                                    terminalEntry.id == cardBoxEntry.id
+                                ) {
+                                    terminalEntry.copy(
+                                        revealCompleted = true
+                                    )
+                                } else {
+                                    terminalEntry
+                                }
+                            }
+
+                            state.copy(
+                                terminalEntries = updatedEntries + entry
                             )
                         }
                     }
