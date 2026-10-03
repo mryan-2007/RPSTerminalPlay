@@ -1,5 +1,8 @@
 package com.example.ui.components
 
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
+import kotlinx.coroutines.delay
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
