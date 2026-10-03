@@ -501,83 +501,100 @@ fun CompactDuelCard(
     val finalCardColor = cardType?.color ?: RockColor
 
     var revealStage by remember(
-        cardType,
-        rank,
-        isRevealed
-    ) {
-        mutableIntStateOf(0)
-    }
+    cardType,
+    rank,
+    isRevealed
+) {
+    mutableIntStateOf(0)
+}
 
-    var displayedCard by remember(
-        cardType,
-        rank,
-        isRevealed
-    ) {
-        mutableStateOf("....")
-    }
+var displayedCard by remember(
+    cardType,
+    rank,
+    isRevealed
+) {
+    mutableStateOf("        ")
+}
 
-    var displayedWager by remember(
-        cardType,
-        rank,
-        isRevealed
-    ) {
-        mutableStateOf(".")
-    }
+var displayedWager by remember(
+    cardType,
+    rank,
+    isRevealed
+) {
+    mutableStateOf(" ")
+}
 
-    LaunchedEffect(cardType, rank, isRevealed) {
-        if (!isRevealed) {
-            displayedCard = "...."
-            displayedWager = "."
-            return@LaunchedEffect
-        }
-
-        // Initial hidden state
-        displayedCard = "...."
-        displayedWager = "."
+LaunchedEffect(cardType, rank, isRevealed) {
+    if (!isRevealed) {
+        displayedCard = "        "
+        displayedWager = " "
         revealStage = 0
+        return@LaunchedEffect
+    }
 
-        // Very short suspense before the wager appears
-        delay(180)
+    val target = finalCardName
+    val random = kotlin.random.Random
 
-        // WAGER APPEARS FIRST
-        displayedWager = rankCode
-        revealStage = 1
+    // Start completely hidden.
+    displayedCard = "        "
+    displayedWager = " "
+    revealStage = 0
 
-        delay(140)
+    // Tiny suspense before wager.
+    delay(180)
 
-        // Card starts resolving
-        val target = finalCardName
+    // WAGER FIRST
+    displayedWager = " $rankCode "
+    revealStage = 1
 
-        val random = kotlin.random.Random
+    delay(140)
 
-        // A few fast randomized intermediate states
-        repeat(3) { step ->
-            val visibleCount = step + 1
+    // Card reveal.
+    val maxWidth = target.length + 6
 
-            val chars = target.toCharArray()
-                .mapIndexed { index, char ->
-                    if (index < visibleCount) {
-                        char
-                    } else {
-                        when (random.nextInt(3)) {
-                            0 -> '.'
-                            1 -> target[random.nextInt(target.length)]
-                            else -> '?'
-                        }
+    repeat(6) { step ->
+        val revealedCount = minOf(step + 1, target.length)
+
+        val revealedPart = target.take(revealedCount)
+
+        val remaining = maxWidth - revealedPart.length
+
+        val leftDots = remaining / 2
+        val rightDots = remaining - leftDots
+
+        val left = ".".repeat(leftDots)
+        val right = ".".repeat(rightDots)
+
+        // Small randomized character disturbance before settling.
+        val middle =
+            if (revealedCount < target.length) {
+                buildString {
+                    append(revealedPart)
+
+                    repeat(target.length - revealedCount) {
+                        append(
+                            when (random.nextInt(3)) {
+                                0 -> '.'
+                                1 -> target[random.nextInt(target.length)]
+                                else -> '?'
+                            }
+                        )
                     }
                 }
-                .joinToString("")
+            } else {
+                revealedPart
+            }
 
-            displayedCard = chars
-            revealStage = 2
+        displayedCard = left + middle + right
+        revealStage = 2
 
-            delay(85)
-        }
-
-        // Final card
-        displayedCard = target
-        revealStage = 3
+        delay(70)
     }
+
+    // Final clean state.
+    displayedCard = target
+    revealStage = 3
+}
 
     Column(
         modifier = modifier,
