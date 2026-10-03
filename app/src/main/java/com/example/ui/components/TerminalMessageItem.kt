@@ -538,33 +538,36 @@ LaunchedEffect(cardType, rank, isRevealed) {
     val target = finalCardName
     val random = kotlin.random.Random
 
-    // Start hidden.
-    // Number of dots is exactly proportional to the card name.
+    // -------------------------------
+    // STAGE 1: HIDDEN CARDS
+    // -------------------------------
     displayedCard = ".".repeat(target.length)
     displayedWager = " "
     revealStage = 0
 
-    // ------------------------------------------------
-    // STAGE 1: BOXES APPEAR
-    // ------------------------------------------------
-    // Give the player time to notice the hidden cards.
+    // Let the boxes sit on screen first.
     delay(650)
 
-    // ------------------------------------------------
+    // -------------------------------
     // STAGE 2: WAGER REVEAL
-    // ------------------------------------------------
+    // -------------------------------
     displayedWager = rankCode
     revealStage = 1
 
-    // Let the wager remain visible.
+    // Keep the wager visible before
+    // the card reveal begins.
     delay(550)
 
-    // ------------------------------------------------
-    // STAGE 3: CARD REVEAL BEGINS
-    // ------------------------------------------------
-    // Reveal one character at a time.
+    // -------------------------------
+    // STAGE 3: CARD RANDOMIZATION
+    // -------------------------------
     for (revealedCount in 1..target.length) {
+
+        // Randomize the unrevealed portion
+        // several times before locking the
+        // next character.
         repeat(7) {
+
             val scrambledPart = buildString {
                 repeat(target.length - revealedCount) {
                     append(
@@ -577,23 +580,18 @@ LaunchedEffect(cardType, rank, isRevealed) {
                 }
             }
 
-            displayedCard = target.take(revealedCount) + scrambledPart
+            displayedCard =
+                target.take(revealedCount) + scrambledPart
+
             revealStage = 2
 
             delay(85)
         }
     }
 
-        displayedCard = revealedPart + hiddenPart
-        revealStage = 2
-
-        // Slower = more suspense.
-        delay(220)
-    }
-
-    // ------------------------------------------------
+    // -------------------------------
     // STAGE 4: FINAL SETTLE
-    // ------------------------------------------------
+    // -------------------------------
     delay(180)
 
     displayedCard = target
