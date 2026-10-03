@@ -79,7 +79,6 @@ fun TerminalMessageItem(
     showSenderHeader: Boolean = true,
     onReply: (TerminalEntry.Chat) -> Unit = {},
     onDelete: (String) -> Unit = {},
-    onRevealCompleted: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     when (entry) {
@@ -453,6 +452,7 @@ private fun CardBoxRevealItem(
                     cardType = entry.p1Card,
                     rank = entry.p1Rank,
                     isRevealed = entry.isRevealed
+                    revealCompleted = entry.revealCompleted
                 )
             }
 
@@ -474,6 +474,7 @@ private fun CardBoxRevealItem(
                     cardType = entry.p2Card,
                     rank = entry.p2Rank,
                     isRevealed = entry.isRevealed
+                    revealCompleted = entry.revealCompleted
                 )
             }
         }
@@ -527,7 +528,14 @@ fun CompactDuelCard(
             mutableStateOf(" ")
           }
 
-LaunchedEffect(cardType, rank, isRevealed) {
+LaunchedEffect(cardType, rank, isRevealed, revealCompleted) {
+    if (revealCompleted) {
+        displayedCard = finalCardName
+        displayedWager = rankCode
+        revealStage = 3
+        return@LaunchedEffect
+    }
+    
     if (!isRevealed) {
         displayedCard = ".".repeat(finalCardName.length)
         displayedWager = " "
