@@ -498,34 +498,28 @@ fun CompactDuelCard(
     isRevealed: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val rankCode = rank?.code ?: "C"
-    val rankColor = rank?.color ?: RankColorC
-    val finalCardName = cardType?.displayName ?: "ROCK"
-    val finalCardColor = cardType?.color ?: RockColor
+        val rankCode = rank?.code ?: "C"
+        val rankColor = rank?.color ?: RankColorC
+        val finalCardName = cardType?.displayName ?: "ROCK"
+        val finalCardColor = cardType?.color ?: RockColor
 
-    var revealStage by remember(
-    cardType,
-    rank,
-    isRevealed
-) {
-    mutableIntStateOf(0)
-}
+        var revealStage by remember(
+            cardType, rank, isRevealed
+        ) {
+            mutableIntStateOf(0)
+          }
 
-var displayedCard by remember(
-    cardType,
-    rank,
-    isRevealed
-) {
-    mutableStateOf("        ")
-}
+        var displayedCard by remember(
+            cardType, rank, isRevealed
+        ) {
+            mutableStateOf("        ")
+          }
 
-var displayedWager by remember(
-    cardType,
-    rank,
-    isRevealed
-) {
-    mutableStateOf(" ")
-}
+        var displayedWager by remember(
+             cardType, rank, isRevealed
+        ) {
+            mutableStateOf(" ")
+          }
 
 LaunchedEffect(cardType, rank, isRevealed) {
     if (!isRevealed) {
