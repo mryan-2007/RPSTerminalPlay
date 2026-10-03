@@ -532,19 +532,15 @@ LaunchedEffect(cardType, rank, isRevealed) {
     val target = finalCardName
     val random = kotlin.random.Random
 
-    // -------------------------------
     // STAGE 1: HIDDEN CARDS
-    // -------------------------------
     displayedCard = ".".repeat(target.length)
     displayedWager = " "
     revealStage = 0
 
-    // Let the boxes sit on screen first.
+    // Let the reveal boxes sit on screen first.
     delay(650)
 
-    // -------------------------------
     // STAGE 2: WAGER REVEAL
-    // -------------------------------
     displayedWager = rankCode
     revealStage = 1
 
@@ -552,15 +548,19 @@ LaunchedEffect(cardType, rank, isRevealed) {
     // the card reveal begins.
     delay(550)
 
-    // -------------------------------
-    // STAGE 3: CARD RANDOMIZATION
-    // -------------------------------
+    // STAGE 3: FIXED-TIME CARD REVEAL
+    val totalRevealDuration = 2400L
+    val perCharacterDuration =
+        totalRevealDuration / target.length
+
     for (revealedCount in 1..target.length) {
 
-        // Randomize the unrevealed portion
-        // several times before locking the
-        // next character.
-        repeat(7) {
+        // Show several random states during this
+        // character's allocated time.
+        val randomCycles = 4
+        val cycleDelay = perCharacterDuration / randomCycles
+
+        repeat(randomCycles) {
 
             val scrambledPart = buildString {
                 repeat(target.length - revealedCount) {
@@ -579,13 +579,11 @@ LaunchedEffect(cardType, rank, isRevealed) {
 
             revealStage = 2
 
-            delay(85)
+            delay(cycleDelay)
         }
     }
 
-    // -------------------------------
     // STAGE 4: FINAL SETTLE
-    // -------------------------------
     delay(180)
 
     displayedCard = target
