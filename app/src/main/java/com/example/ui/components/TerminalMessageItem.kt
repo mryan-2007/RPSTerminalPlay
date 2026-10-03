@@ -428,67 +428,41 @@ private fun CardBoxRevealItem(
                 onClick = {},
                 onLongClick = { showActionMenu = true }
             )
-            .padding(horizontal = 10.dp, vertical = 7.dp)
+            .padding(horizontal = 8.dp, vertical = 7.dp)
     ) {
-        Column(
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
+            verticalAlignment = Alignment.CenterVertically
         ) {
 
-            // Player names
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = entry.p1Name.uppercase(),
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TerminalTextPrimary
-                )
-
-                Text(
-                    text = "⚔",
-                    fontSize = 15.sp,
-                    color = PhosphorGreen
-                )
-
-                Text(
-                    text = entry.p2Name.uppercase(),
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TerminalTextPrimary
-                )
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Revealed cards
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
+            // Player 1
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = Alignment.Center
             ) {
                 CompactDuelCard(
-                    playerName = "",
+                    playerName = entry.p1Name,
                     cardType = entry.p1Card,
                     rank = entry.p1Rank,
                     isRevealed = entry.isRevealed
                 )
+            }
 
-                Text(
-                    text = "⚔️",
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TerminalTextSecondary
-                )
+            // Single sword in the exact center
+            Text(
+                text = "⚔",
+                fontSize = 15.sp,
+                color = TerminalTextPrimary,
+                modifier = Modifier.padding(horizontal = 5.dp)
+            )
 
+            // Player 2
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
                 CompactDuelCard(
-                    playerName = "",
+                    playerName = entry.p2Name,
                     cardType = entry.p2Card,
                     rank = entry.p2Rank,
                     isRevealed = entry.isRevealed
@@ -523,31 +497,70 @@ fun CompactDuelCard(
 ) {
     val rankCode = rank?.code ?: "C"
     val rankColor = rank?.color ?: RankColorC
-    val cardName = if (isRevealed) (cardType?.displayName ?: "ROCK") else "??????"
-    val cardColor = if (isRevealed) (cardType?.color ?: RockColor) else TerminalAmber
+
+    val cardName =
+        if (isRevealed) {
+            cardType?.displayName ?: "ROCK"
+        } else {
+            "????"
+        }
+
+    val cardColor =
+        if (isRevealed) {
+            cardType?.color ?: RockColor
+        } else {
+            TerminalAmber
+        }
 
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = playerName.uppercase(),
-            fontFamily = FontFamily.Monospace,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            color = TerminalTextPrimary
-        )
+
+        // Player name box
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(4.dp))
+                .background(TerminalCardBg)
+                .border(
+                    1.dp,
+                    Color(0xFF9EA7AD),
+                    RoundedCornerShape(4.dp)
+                )
+                .padding(horizontal = 7.dp, vertical = 3.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = playerName.uppercase(),
+                fontFamily = FontFamily.Monospace,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                color = TerminalTextPrimary,
+                maxLines = 1
+            )
+        }
 
         Spacer(modifier = Modifier.height(2.dp))
 
-        Box(
+        // Card + wager combined box
+        Row(
             modifier = Modifier
                 .clip(RoundedCornerShape(4.dp))
                 .background(TerminalCardBg)
-                .border(1.dp, Color(0xFF9EA7AD), RoundedCornerShape(4.dp))
-                .padding(horizontal = 8.dp, vertical = 4.dp)
+                .border(
+                    1.dp,
+                    Color(0xFF9EA7AD),
+                    RoundedCornerShape(4.dp)
+                )
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+
+            // Card name section
+            Box(
+                modifier = Modifier
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                contentAlignment = Alignment.Center
+            ) {
                 Text(
                     text = cardName,
                     fontFamily = FontFamily.Monospace,
@@ -555,7 +568,22 @@ fun CompactDuelCard(
                     fontWeight = FontWeight.Bold,
                     color = cardColor
                 )
-                Spacer(modifier = Modifier.width(6.dp))
+            }
+
+            // Divider
+            Box(
+                modifier = Modifier
+                    .width(1.dp)
+                    .height(25.dp)
+                    .background(Color(0xFF9EA7AD))
+            )
+
+            // Wager section
+            Box(
+                modifier = Modifier
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                contentAlignment = Alignment.Center
+            ) {
                 Text(
                     text = rankCode,
                     fontFamily = FontFamily.Monospace,
@@ -567,7 +595,6 @@ fun CompactDuelCard(
         }
     }
 }
-
 /**
  * Result of round resolution with actual player names and individual chosen score deltas.
  */
