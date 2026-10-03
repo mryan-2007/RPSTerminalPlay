@@ -37,6 +37,19 @@ class GameViewModel : ViewModel(), NetworkMessageListener {
         // Start in pure, clean terminal state without auto-starting local game or score boxes
         showWelcomeTerminal()
     }
+    fun markRevealCompleted(id: String) {
+    _uiState.update { state ->
+        state.copy(
+            terminalEntries = state.terminalEntries.map { entry ->
+                if (entry is TerminalEntry.CardBox && entry.id == id) {
+                    entry.copy(revealCompleted = true)
+                } else {
+                    entry
+                }
+            }
+        )
+    }
+    }
 
     fun showWelcomeTerminal() {
         _uiState.update {
