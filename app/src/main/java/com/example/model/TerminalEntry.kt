@@ -32,6 +32,13 @@ sealed class TerminalEntry {
         override val timestamp: Long = System.currentTimeMillis()
     ) : TerminalEntry()
 
+    data class Countdown(
+        override val id: String,
+        val text: String,
+        val level: SystemLevel,
+        override val timestamp: Long = System.currentTimeMillis()
+    ) : TerminalEntry()
+
     data class CardBox(
         override val id: String,
         val p1Name: String,
