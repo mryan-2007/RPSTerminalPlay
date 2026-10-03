@@ -529,7 +529,7 @@ var displayedWager by remember(
 
 LaunchedEffect(cardType, rank, isRevealed) {
     if (!isRevealed) {
-        displayedCard = "        "
+        displayedCard = ".".repeat(finalCardName.length)
         displayedWager = " "
         revealStage = 0
         return@LaunchedEffect
@@ -538,63 +538,68 @@ LaunchedEffect(cardType, rank, isRevealed) {
     val target = finalCardName
     val random = kotlin.random.Random
 
-    // Start completely hidden.
-    displayedCard = "        "
+    // Start hidden.
+    // Number of dots is exactly proportional to the card name.
+    displayedCard = ".".repeat(target.length)
     displayedWager = " "
     revealStage = 0
 
-    // Tiny suspense before wager.
-    delay(180)
+    // ------------------------------------------------
+    // STAGE 1: BOXES APPEAR
+    // ------------------------------------------------
+    // Give the player time to notice the hidden cards.
+    delay(650)
 
-    // WAGER FIRST
-    displayedWager = " $rankCode "
+    // ------------------------------------------------
+    // STAGE 2: WAGER REVEAL
+    // ------------------------------------------------
+    displayedWager = rankCode
     revealStage = 1
 
-    delay(140)
+    // Let the wager remain visible.
+    delay(550)
 
-    // Card reveal.
-    val maxWidth = target.length + 6
-
-    repeat(6) { step ->
-        val revealedCount = minOf(step + 1, target.length)
+    // ------------------------------------------------
+    // STAGE 3: CARD REVEAL BEGINS
+    // ------------------------------------------------
+    // Reveal one character at a time.
+    for (revealedCount in 1..target.length) {
 
         val revealedPart = target.take(revealedCount)
 
-        val remaining = maxWidth - revealedPart.length
+        repeat(5) {
 
-        val leftDots = remaining / 2
-        val rightDots = remaining - leftDots
-
-        val left = ".".repeat(leftDots)
-        val right = ".".repeat(rightDots)
-
-        // Small randomized character disturbance before settling.
-        val middle =
-            if (revealedCount < target.length) {
-                buildString {
-                    append(revealedPart)
-
-                    repeat(target.length - revealedCount) {
-                        append(
-                            when (random.nextInt(3)) {
-                                0 -> '.'
-                                1 -> target[random.nextInt(target.length)]
-                                else -> '?'
-                            }
-                        )
-                    }
+            val scrambledPart = buildString {
+                repeat(target.length - revealedCount) {
+                    append(
+                        if (random.nextBoolean()) {
+                            '.'
+                        } else {
+                            ('A'..'Z').random(random)
+                        }
+                    )
                 }
-            } else {
-                revealedPart
             }
 
-        displayedCard = left + middle + right
+        displayedCard = revealedPart + scrambledPart
         revealStage = 2
 
-        delay(70)
+        delay(90)
+        }
+     }
+
+        displayedCard = revealedPart + hiddenPart
+        revealStage = 2
+
+        // Slower = more suspense.
+        delay(220)
     }
 
-    // Final clean state.
+    // ------------------------------------------------
+    // STAGE 4: FINAL SETTLE
+    // ------------------------------------------------
+    delay(180)
+
     displayedCard = target
     revealStage = 3
 }
