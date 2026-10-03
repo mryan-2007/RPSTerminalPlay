@@ -398,8 +398,6 @@ onMessageToClient(cardBoxPayload.toString())
             }
             onMessageToClient(revealPayload.toString())
 
-            sendSystem(outcomeText, if (winner > 0) "success" else "info")
-
             // Check if deck needs replenishment
             if (p1Cards.total == 0) {
                 p1Cards = CardCounts(2, 2, 2)
