@@ -375,7 +375,51 @@ class GameViewModel : ViewModel(), NetworkMessageListener {
                         state.copy(terminalEntries = entries)
                     }
                 }
-                
+                "system" -> {
+                    val text = json.optString("text")
+                    val levelStr = json.optString("level", "info")
+
+                    val level = when (levelStr) {
+                        "warning" -> SystemLevel.WARNING
+                        "danger" -> SystemLevel.DANGER
+                        "success" -> SystemLevel.SUCCESS
+                        "countdown" -> SystemLevel.COUNTDOWN
+                        "highlight" -> SystemLevel.HIGHLIGHT
+                        "cards_display", "cards" -> SystemLevel.CARDS
+                        else -> SystemLevel.INFO
+                    }
+
+                    val entry = TerminalEntry.SystemMsg(
+                        id = UUID.randomUUID().toString(),
+                        text = text,
+                        level = level
+                    )
+
+                    // The LocalGameEngine sends the /start message
+                    // immediately after the reveal message.
+                    //
+                    // Hold it until the reveal result has appeared.
+                    if (
+                        revealResultJob?.isActive == true &&
+                        text.contains("Type /start", ignoreCase = true)
+                    ) {
+                        viewModelScope.launch {
+                            revealResultJob?.join()
+
+                            _uiState.update {
+                                it.copy(
+                                    terminalEntries = it.terminalEntries + entry
+                                )
+                            }
+                        }
+                    } else {
+                        _uiState.update {
+                            it.copy(
+                                terminalEntries = it.terminalEntries + entry
+                            )
+                        }
+                    }
+                }
                 
                 "state_sync" -> {
                     val stateName = json.optString("state", _uiState.value.stateName)
@@ -482,10 +526,17 @@ class GameViewModel : ViewModel(), NetworkMessageListener {
                     }
 
                     // STEP 2: WAIT FOR THE FULL CARD
-                    viewModelScope.launch {
+                    revealResultJob?.cancel()
+
+                    revealResultJob = viewModelScope.launch {
+                    // 650 ms hidden
+                    // 550 ms wager
+                    // 2400 ms card reveal
+                    // 180 ms final settle
+                    // -----------------
+                    // 3780 ms total
                         delay(3780)
 
-                        // STEP 3: NOW SHOW THE RESULT BOX
                         _uiState.update {
                             it.copy(
                                 terminalEntries = it.terminalEntries + entry
