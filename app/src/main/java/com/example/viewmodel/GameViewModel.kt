@@ -421,18 +421,31 @@ class GameViewModel : ViewModel(), NetworkMessageListener {
                 }
                 "reveal" -> {
                     val winner = json.optInt("winner")
-                    val p1Name = json.optString("p1_name", _uiState.value.player1Name.ifEmpty { "Player" })
-                    val p2Name = json.optString("p2_name", _uiState.value.player2Name.ifEmpty { "Opponent" })
+                    val p1Name = json.optString(
+                         "p1_name",
+                        _uiState.value.player1Name.ifEmpty { "Player" })
+                    val p2Name = json.optString(
+                        "p2_name",
+                        _uiState.value.player2Name.ifEmpty { "Opponent" })
                     val reason = json.optString("reason")
                     val outcomeText = json.optString("outcome_text")
                     val p1Delta = json.optInt("p1_delta")
                     val p2Delta = json.optInt("p2_delta")
                     val p1Score = json.optInt("p1_score")
                     val p2Score = json.optInt("p2_score")
-                    val p1Card = CardType.fromString(json.optString("p1_card"))
-                    val p1Rank = WagerRank.fromString(json.optString("p1_rank"))
-                    val p2Card = CardType.fromString(json.optString("p2_card"))
-                    val p2Rank = WagerRank.fromString(json.optString("p2_rank"))
+
+                    val p1Card = CardType.fromString(
+                        json.optString("p1_card")
+                    )
+                    val p1Rank = WagerRank.fromString(
+                        json.optString("p1_rank")
+                    )
+                    val p2Card = CardType.fromString(
+                        json.optString("p2_card")
+                    )
+                    val p2Rank = WagerRank.fromString(
+                        json.optString("p2_rank")
+                    )
 
                     val cardBoxEntry = TerminalEntry.CardBox(
                         id = UUID.randomUUID().toString(),
@@ -444,6 +457,7 @@ class GameViewModel : ViewModel(), NetworkMessageListener {
                         p2Rank = p2Rank,
                         isRevealed = true
                     )
+
                     val entry = TerminalEntry.RevealOutcome(
                         id = UUID.randomUUID().toString(),
                         winner = winner,
@@ -456,12 +470,26 @@ class GameViewModel : ViewModel(), NetworkMessageListener {
                         p1Score = p1Score,
                         p2Score = p2Score
                     )
+
+                    // STEP 1: SHOW ONLY THE REVEAL BOX
                     _uiState.update {
                         it.copy(
-                            terminalEntries = it.terminalEntries + cardBoxEntry + entry,
+                            terminalEntries = it.terminalEntries + cardBoxEntry,
                             player1Score = p1Score,
                             player2Score = p2Score
                         )
+                    }
+
+                    // STEP 2: WAIT FOR THE FULL CARD
+                    viewModelScope.launch {
+                        delay(3780)
+
+                        // STEP 3: NOW SHOW THE RESULT BOX
+                        _uiState.update {
+                            it.copy(
+                                terminalEntries = it.terminalEntries + entry
+                            )
+                        }
                     }
                 }
                 "clear" -> {
