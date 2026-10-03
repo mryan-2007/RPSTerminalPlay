@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.util.UUID
@@ -27,6 +28,8 @@ class GameViewModel : ViewModel(), NetworkMessageListener {
     private val _uiState = MutableStateFlow(GameUiState())
     val uiState: StateFlow<GameUiState> = _uiState.asStateFlow()
 
+    private var revealResultJob: Job? = null
+    
     private val wsClient = WebSocketClient(this)
     private var localEngine: LocalGameEngine? = null
 
@@ -333,18 +336,9 @@ class GameViewModel : ViewModel(), NetworkMessageListener {
                     _uiState.update { state ->
                         val entries = state.terminalEntries.toMutableList()
 
-                        val existingIndex = entries.indexOfLast {
-                            it is TerminalEntry.Countdown
-                        }
-
-                        if (existingIndex >= 0) {
-                            val existing = entries[existingIndex] as TerminalEntry.Countdown
-
-                            entries[existingIndex] = existing.copy(
-                                text = text,
-                                level = level
-                            )
-                        } else {
+                        // Every "3" starts a completely new countdown
+                        // for a new round.
+                        if (levelStr == "countdown_3") {
                             entries.add(
                                 TerminalEntry.Countdown(
                                     id = UUID.randomUUID().toString(),
@@ -352,31 +346,37 @@ class GameViewModel : ViewModel(), NetworkMessageListener {
                                     level = level
                                 )
                             )
+                        } else {
+                            // 2, 1 and REVEAL update the countdown
+                            // belonging to the current round.
+                            val existingIndex = entries.indexOfLast {
+                                it is TerminalEntry.Countdown
+                            }
+
+                            if (existingIndex >= 0) {
+                                val existing =
+                                    entries[existingIndex] as TerminalEntry.Countdown
+
+                                entries[existingIndex] = existing.copy(
+                                    text = text,
+                                    level = level
+                                )
+                            } else {
+                                entries.add(
+                                    TerminalEntry.Countdown(
+                                        id = UUID.randomUUID().toString(),
+                                        text = text,
+                        level = level
+                                    )
+                                )
+                            }
                         }
 
                         state.copy(terminalEntries = entries)
                     }
                 }
                 
-                "system" -> {
-                    val text = json.optString("text")
-                    val levelStr = json.optString("level", "info")
-                    val level = when (levelStr) {
-                        "warning" -> SystemLevel.WARNING
-                        "danger" -> SystemLevel.DANGER
-                        "success" -> SystemLevel.SUCCESS
-                        "countdown" -> SystemLevel.COUNTDOWN
-                        "highlight" -> SystemLevel.HIGHLIGHT
-                        "cards_display", "cards" -> SystemLevel.CARDS
-                        else -> SystemLevel.INFO
-                    }
-                    val entry = TerminalEntry.SystemMsg(
-                        id = UUID.randomUUID().toString(),
-                        text = text,
-                        level = level
-                    )
-                    _uiState.update { it.copy(terminalEntries = it.terminalEntries + entry) }
-                }
+                
                 "state_sync" -> {
                     val stateName = json.optString("state", _uiState.value.stateName)
                     val round = json.optInt("round", _uiState.value.roundNumber)
