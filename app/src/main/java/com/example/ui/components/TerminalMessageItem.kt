@@ -627,9 +627,8 @@ private fun RevealOutcomeItem(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+            Column(
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
                     text = "${entry.p1Name}: ${entry.p1Score} (${if (entry.p1Delta >= 0) "+${entry.p1Delta}" else "${entry.p1Delta}"})",
@@ -638,7 +637,9 @@ private fun RevealOutcomeItem(
                     fontWeight = FontWeight.Bold,
                     color = if (entry.p1Delta >= 0) PhosphorGreen else TerminalCrimson
                 )
-
+                
+                Spacer(modifier = Modifier.height(2.dp))
+                
                 Text(
                     text = "${entry.p2Name}: ${entry.p2Score} (${if (entry.p2Delta >= 0) "+${entry.p2Delta}" else "${entry.p2Delta}"})",
                     fontFamily = FontFamily.Monospace,
