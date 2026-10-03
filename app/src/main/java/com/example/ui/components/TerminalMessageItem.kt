@@ -501,6 +501,7 @@ fun CompactDuelCard(
     cardType: CardType?,
     rank: WagerRank?,
     isRevealed: Boolean,
+    revealCompleted: Boolean,
     modifier: Modifier = Modifier
 ) {
         val rankCode = rank?.code ?: "C"
