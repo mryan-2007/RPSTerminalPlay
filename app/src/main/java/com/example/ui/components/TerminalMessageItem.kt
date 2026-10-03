@@ -406,7 +406,7 @@ fun buildTerminalText(text: String, defaultTint: Color) = buildAnnotatedString {
 }
 
 /**
- * Compact aesthetic card duel display
+ * Compact terminal-style card duel reveal
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -428,33 +428,72 @@ private fun CardBoxRevealItem(
                 onClick = {},
                 onLongClick = { showActionMenu = true }
             )
-            .padding(8.dp)
+            .padding(horizontal = 10.dp, vertical = 7.dp)
     ) {
-        Row(
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // First Player Card
-            CompactDuelCard(
-                playerName = entry.p1Name,
-                cardType = entry.p1Card,
-                rank = entry.p1Rank,
-                isRevealed = entry.isRevealed
-            )
 
-            Text(
-                text = "⚔️",
-                fontSize = 16.sp
-            )
+            // Player names
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = entry.p1Name.uppercase(),
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TerminalTextPrimary
+                )
 
-            // Second Player Card
-            CompactDuelCard(
-                playerName = entry.p2Name,
-                cardType = entry.p2Card,
-                rank = entry.p2Rank,
-                isRevealed = entry.isRevealed
-            )
+                Text(
+                    text = "⚔",
+                    fontSize = 15.sp,
+                    color = PhosphorGreen
+                )
+
+                Text(
+                    text = entry.p2Name.uppercase(),
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TerminalTextPrimary
+                )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Revealed cards
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CompactDuelCard(
+                    playerName = "",
+                    cardType = entry.p1Card,
+                    rank = entry.p1Rank,
+                    isRevealed = entry.isRevealed
+                )
+
+                Text(
+                    text = "⚔️",
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TerminalTextSecondary
+                )
+
+                CompactDuelCard(
+                    playerName = "",
+                    cardType = entry.p2Card,
+                    rank = entry.p2Rank,
+                    isRevealed = entry.isRevealed
+                )
+            }
         }
     }
 
