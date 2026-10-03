@@ -34,6 +34,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -503,19 +504,19 @@ fun CompactDuelCard(
         val finalCardName = cardType?.displayName ?: "ROCK"
         val finalCardColor = cardType?.color ?: RockColor
 
-        var revealStage by remember(
+        var revealStage by rememberSaveable(
             cardType, rank, isRevealed
         ) {
             mutableIntStateOf(0)
           }
 
-        var displayedCard by remember(
+        var displayedCard by rememberSaveable(
             cardType, rank, isRevealed
         ) {
-            mutableStateOf("        ")
+            mutableStateOf(" ")
           }
 
-        var displayedWager by remember(
+        var displayedWager by rememberSaveable(
              cardType, rank, isRevealed
         ) {
             mutableStateOf(" ")
