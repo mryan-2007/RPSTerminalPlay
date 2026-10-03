@@ -48,6 +48,7 @@ sealed class TerminalEntry {
         val p2Card: CardType?,
         val p2Rank: WagerRank?,
         val isRevealed: Boolean,
+        val revealCompleted: Boolean = false,
         override val timestamp: Long = System.currentTimeMillis()
     ) : TerminalEntry()
 
