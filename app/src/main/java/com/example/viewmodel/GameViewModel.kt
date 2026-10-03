@@ -45,7 +45,7 @@ class GameViewModel : ViewModel(), NetworkMessageListener {
                     TerminalEntry.SystemMsg(
                         id = UUID.randomUUID().toString(),
                         text = "╔══════════════════════════════════╗\n" +
-                               "║     RPS // TACTICAL TERMINAL     ║\n" +
+                               "║     RPS // TACTICAL TERMINAL           ║\n" +
                                "╚══════════════════════════════════╝\n\n" +
                                "Choose an option to play:\n" +
                                "  • Type /local [name]  - Start solo / practice battle\n" +
