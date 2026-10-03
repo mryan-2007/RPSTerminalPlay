@@ -34,6 +34,7 @@ sealed class TerminalEntry {
 
     data class CardBox(
         override val id: String,
+        val roundNumber: Int,
         val p1Name: String,
         val p1Card: CardType?,
         val p1Rank: WagerRank?,
