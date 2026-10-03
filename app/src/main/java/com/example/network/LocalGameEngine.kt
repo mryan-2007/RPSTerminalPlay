@@ -319,10 +319,16 @@ class LocalGameEngine(
             state = "REVEAL"
             sendSystem("\n[SYSTEM] BOTH CARDS LOCKED.", "info")
 
-            // Compact aesthetic countdown
-            delay(400)
-            sendSystem("[ 3 • 2 • 1 • REVEAL! ]", "highlight")
-            delay(400)
+            // Terminal countdown: 3 → 2 → 1 → REVEAL
+        delay(400)
+        sendCountdown("3", "countdown_3")
+        delay(1000)
+        sendCountdown("2", "countdown_2")
+        delay(1000)
+        sendCountdown("1", "countdown_1")
+        delay(1000)
+        sendCountdown("REVEAL", "countdown_reveal")
+        delay(400)
 
             val p1Card = p1ChosenCard ?: CardType.ROCK
             val p1Rk = p1ChosenRank ?: WagerRank.C
