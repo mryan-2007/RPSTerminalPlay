@@ -149,7 +149,7 @@ fun TerminalScreen(
                                 showSenderHeader = showSenderHeader,
                                 onReply = { chat -> viewModel.setReplyingTo(chat) },
                                 onDelete = { id -> viewModel.deleteMessage(id) }
-                                onRevealCompleted = { id -> viewModel.markRevealCompleted(id) }
+                                
                             )
                         }
                     }
