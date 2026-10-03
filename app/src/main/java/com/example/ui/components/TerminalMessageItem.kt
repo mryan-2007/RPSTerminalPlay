@@ -497,20 +497,87 @@ fun CompactDuelCard(
 ) {
     val rankCode = rank?.code ?: "C"
     val rankColor = rank?.color ?: RankColorC
+    val finalCardName = cardType?.displayName ?: "ROCK"
+    val finalCardColor = cardType?.color ?: RockColor
 
-    val cardName =
-        if (isRevealed) {
-            cardType?.displayName ?: "ROCK"
-        } else {
-            "????"
+    var revealStage by remember(
+        cardType,
+        rank,
+        isRevealed
+    ) {
+        mutableIntStateOf(0)
+    }
+
+    var displayedCard by remember(
+        cardType,
+        rank,
+        isRevealed
+    ) {
+        mutableStateOf("....")
+    }
+
+    var displayedWager by remember(
+        cardType,
+        rank,
+        isRevealed
+    ) {
+        mutableStateOf(".")
+    }
+
+    LaunchedEffect(cardType, rank, isRevealed) {
+        if (!isRevealed) {
+            displayedCard = "...."
+            displayedWager = "."
+            return@LaunchedEffect
         }
 
-    val cardColor =
-        if (isRevealed) {
-            cardType?.color ?: RockColor
-        } else {
-            TerminalAmber
+        // Initial hidden state
+        displayedCard = "...."
+        displayedWager = "."
+        revealStage = 0
+
+        // Very short suspense before the wager appears
+        delay(180)
+
+        // WAGER APPEARS FIRST
+        displayedWager = rankCode
+        revealStage = 1
+
+        delay(140)
+
+        // Card starts resolving
+        val target = finalCardName
+
+        val random = kotlin.random.Random
+
+        // A few fast randomized intermediate states
+        repeat(3) { step ->
+            val visibleCount = step + 1
+
+            val chars = target.toCharArray()
+                .mapIndexed { index, char ->
+                    if (index < visibleCount) {
+                        char
+                    } else {
+                        when (random.nextInt(3)) {
+                            0 -> '.'
+                            1 -> target[random.nextInt(target.length)]
+                            else -> '?'
+                        }
+                    }
+                }
+                .joinToString("")
+
+            displayedCard = chars
+            revealStage = 2
+
+            delay(85)
         }
+
+        // Final card
+        displayedCard = target
+        revealStage = 3
+    }
 
     Column(
         modifier = modifier,
@@ -562,11 +629,15 @@ fun CompactDuelCard(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = cardName,
+                    text = displayedCard,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = cardColor
+                    color = if (revealStage >= 3) {
+                        finalCardColor
+                    } else {
+                        TerminalAmber
+                    }
                 )
             }
 
@@ -585,11 +656,15 @@ fun CompactDuelCard(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = rankCode,
+                    text = displayedWager,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = rankColor
+                    color = if (displayedWager == rankCode) {
+                        rankColor
+                    } else {
+                        TerminalAmber
+                    }
                 )
             }
         }
