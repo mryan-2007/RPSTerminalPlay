@@ -79,6 +79,7 @@ fun TerminalMessageItem(
     showSenderHeader: Boolean = true,
     onReply: (TerminalEntry.Chat) -> Unit = {},
     onDelete: (String) -> Unit = {},
+    revealCompleted: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     when (entry) {
@@ -108,8 +109,8 @@ fun TerminalMessageItem(
             CardBoxRevealItem(
                 entry = entry,
                 onDelete = { onDelete(entry.id) },
-                onRevealCompleted = {
-                    onRevealCompleted(entry.id)
+                revealCompleted = {
+                    revealCompleted(entry.id)
                 },
                 modifier = modifier
             )
@@ -421,6 +422,7 @@ private fun CardBoxRevealItem(
     entry: TerminalEntry.CardBox,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
+    revealCompleted: () -> Unit,
 ) {
     var showActionMenu by remember { mutableStateOf(false) }
 
