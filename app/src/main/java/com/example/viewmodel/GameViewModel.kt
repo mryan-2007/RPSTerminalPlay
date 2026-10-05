@@ -400,6 +400,29 @@ class GameViewModel : ViewModel(), NetworkMessageListener {
                         _uiState.update { it.copy(localCards = CardCounts(rock, paper, scissors)) }
                     }
                 }
+                "card_box" -> {
+                    val roundNumber = json.optInt("round", _uiState.value.roundNumber)
+                    val p1Name = json.optString("p1_name", _uiState.value.player1Name.ifEmpty { "Host" })
+                    val p1Card = CardType.fromString(json.optString("p1_card"))
+                    val p1Rank = WagerRank.fromString(json.optString("p1_rank"))
+                    val p2Name = json.optString("p2_name", _uiState.value.player2Name.ifEmpty { "Opponent" })
+                    val p2Card = CardType.fromString(json.optString("p2_card"))
+                    val p2Rank = WagerRank.fromString(json.optString("p2_rank"))
+                    val isRevealed = json.optBoolean("is_revealed", true)
+
+                    val entry = TerminalEntry.CardBox(
+                        id = UUID.randomUUID().toString(),
+                        roundNumber = roundNumber,
+                        p1Name = p1Name,
+                        p1Card = p1Card,
+                        p1Rank = p1Rank,
+                        p2Name = p2Name,
+                        p2Card = p2Card,
+                        p2Rank = p2Rank,
+                        isRevealed = isRevealed
+                    )
+                    _uiState.update { it.copy(terminalEntries = it.terminalEntries + entry) }
+                }
                 "reveal" -> {
                     val winner = json.optInt("winner")
                     val p1Name = json.optString("p1_name", _uiState.value.player1Name.ifEmpty { "Player" })

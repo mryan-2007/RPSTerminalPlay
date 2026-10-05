@@ -17,7 +17,7 @@ import org.robolectric.annotation.Config
 import java.util.UUID
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [36])
+@Config(sdk = [34])
 class ExampleRobolectricTest {
 
     @Test
@@ -102,5 +102,26 @@ class ExampleRobolectricTest {
         assertEquals("Alex", chat.senderName)
         assertEquals("Sam", chat.replyToSender)
         assertEquals("Good luck", chat.replyToText)
+    }
+
+    @Test
+    fun `test card box model with round number`() {
+        val box = TerminalEntry.CardBox(
+            id = UUID.randomUUID().toString(),
+            roundNumber = 3,
+            p1Name = "Alex",
+            p1Card = CardType.ROCK,
+            p1Rank = WagerRank.A,
+            p2Name = "Sam",
+            p2Card = CardType.SCISSORS,
+            p2Rank = WagerRank.B,
+            isRevealed = true
+        )
+
+        assertEquals(3, box.roundNumber)
+        assertEquals("Alex", box.p1Name)
+        assertEquals(CardType.ROCK, box.p1Card)
+        assertEquals(WagerRank.A, box.p1Rank)
+        assertTrue(box.isRevealed)
     }
 }

@@ -21,9 +21,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Reply
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -44,6 +44,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -384,51 +385,77 @@ private fun CardBoxRevealItem(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
-            .clip(RoundedCornerShape(6.dp))
+            .clip(RoundedCornerShape(8.dp))
             .background(TerminalDarkSurface)
-            .border(1.dp, PhosphorGreen, RoundedCornerShape(6.dp))
+            .border(1.dp, PhosphorGreen.copy(alpha = 0.8f), RoundedCornerShape(8.dp))
             .combinedClickable(
                 onClick = {},
                 onLongClick = { showActionMenu = true }
             )
-            .padding(horizontal = 8.dp, vertical = 7.dp)
+            .padding(10.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-
-            // Player 1
-            Box(
-                modifier = Modifier.weight(1f),
-                contentAlignment = Alignment.Center
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                Text(
+                    text = "DUEL // ROUND ${entry.roundNumber}",
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = PhosphorGreen
+                )
+                Text(
+                    text = "[LOCKED & REVEALED]",
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 10.sp,
+                    color = CyberCyan
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // First Player Card (Auto-sizable with weight)
                 CompactDuelCard(
                     playerName = entry.p1Name,
                     cardType = entry.p1Card,
                     rank = entry.p1Rank,
-                    isRevealed = entry.isRevealed
+                    isRevealed = entry.isRevealed,
+                    modifier = Modifier.weight(1f)
                 )
-            }
 
-            // Single sword in the exact center
-            Text(
-                text = "⚔",
-                fontSize = 15.sp,
-                color = TerminalTextPrimary,
-                modifier = Modifier.padding(horizontal = 5.dp)
-            )
+                // Center Clash VS Badge
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(TerminalAmber.copy(alpha = 0.15f))
+                        .border(1.dp, TerminalAmber.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
+                        .padding(horizontal = 6.dp, vertical = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "VS",
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = TerminalAmber
+                    )
+                }
 
-            // Player 2
-            Box(
-                modifier = Modifier.weight(1f),
-                contentAlignment = Alignment.Center
-            ) {
+                // Second Player Card (Auto-sizable with weight)
                 CompactDuelCard(
                     playerName = entry.p2Name,
                     cardType = entry.p2Card,
                     rank = entry.p2Rank,
-                    isRevealed = entry.isRevealed
+                    isRevealed = entry.isRevealed,
+                    modifier = Modifier.weight(1f)
                 )
             }
         }
@@ -460,105 +487,76 @@ fun CompactDuelCard(
 ) {
     val rankCode = rank?.code ?: "C"
     val rankColor = rank?.color ?: RankColorC
-
-    val cardName =
-        if (isRevealed) {
-            cardType?.displayName ?: "ROCK"
-        } else {
-            "????"
-        }
-
-    val cardColor =
-        if (isRevealed) {
-            cardType?.color ?: RockColor
-        } else {
-            TerminalAmber
-        }
+    val cardEmoji = when (cardType) {
+        CardType.ROCK -> "🪨"
+        CardType.PAPER -> "📄"
+        CardType.SCISSORS -> "✂️"
+        null -> "❓"
+    }
+    val cardName = if (isRevealed) (cardType?.displayName ?: "ROCK") else "HIDDEN"
+    val cardColor = if (isRevealed) (cardType?.color ?: RockColor) else TerminalAmber
 
     Column(
-        modifier = modifier,
+        modifier = modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Text(
+            text = playerName.uppercase(),
+            fontFamily = FontFamily.Monospace,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            color = TerminalTextPrimary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
 
-        // Player name box
+        Spacer(modifier = Modifier.height(3.dp))
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(4.dp))
+                .clip(RoundedCornerShape(6.dp))
                 .background(TerminalCardBg)
-                .border(
-                    1.dp,
-                    Color(0xFF9EA7AD),
-                    RoundedCornerShape(4.dp)
-                )
-                .padding(horizontal = 7.dp, vertical = 3.dp),
-            contentAlignment = Alignment.Center
+                .border(1.dp, rankColor, RoundedCornerShape(6.dp))
+                .padding(horizontal = 6.dp, vertical = 6.dp)
         ) {
-            Text(
-                text = playerName.uppercase(),
-                fontFamily = FontFamily.Monospace,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                color = TerminalTextPrimary,
-                maxLines = 1
-            )
-        }
-
-        Spacer(modifier = Modifier.height(2.dp))
-
-        // Card + wager combined box
-        Row(
-            modifier = Modifier
-                .clip(RoundedCornerShape(4.dp))
-                .background(TerminalCardBg)
-                .border(
-                    1.dp,
-                    Color(0xFF9EA7AD),
-                    RoundedCornerShape(4.dp)
-                )
-        ) {
-
-            // Card name section
-            Box(
-                modifier = Modifier
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                contentAlignment = Alignment.Center
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    text = cardName,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = cardColor
-                )
-            }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    if (isRevealed) {
+                        Text(text = cardEmoji, fontSize = 13.sp)
+                        Spacer(modifier = Modifier.width(3.dp))
+                    }
+                    Text(
+                        text = cardName,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = cardColor,
+                        maxLines = 1
+                    )
+                }
 
-            // Divider
-            Box(
-                modifier = Modifier
-                    .width(1.dp)
-                    .height(25.dp)
-                    .background(Color(0xFF9EA7AD))
-            )
+                Spacer(modifier = Modifier.height(2.dp))
 
-            // Wager section
-            Box(
-                modifier = Modifier
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                contentAlignment = Alignment.Center
-            ) {
+                // Wager rank badge
                 Text(
-                    text = rankCode,
+                    text = "RANK $rankCode (${rank?.points ?: 3}pts)",
                     fontFamily = FontFamily.Monospace,
-                    fontSize = 12.sp,
+                    fontSize = 9.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = rankColor
+                    color = rankColor,
+                    maxLines = 1
                 )
             }
         }
     }
 }
-
 
 /**
  * Result of round resolution with actual player names and individual chosen score deltas.
@@ -706,7 +704,7 @@ fun MessageActionDialog(
 
                 if (showReplyOption) {
                     ActionRow(
-                        icon = Icons.Default.Reply,
+                        icon = Icons.AutoMirrored.Filled.Reply,
                         label = "REPLY TO MESSAGE",
                         color = CyberCyan,
                         onClick = onReply

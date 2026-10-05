@@ -337,7 +337,7 @@ class RPSGame:
     async def run_reveal_sequence(self):
         """
         Reveal sequence:
-        Compact aesthetic countdown, duel box, and individual chosen wager resolution.
+        Suspenseful countdown with proper pacing, duel box packet, and individual chosen wager resolution.
         """
         self.state = STATE_REVEAL
         await self.broadcast({
@@ -346,22 +346,35 @@ class RPSGame:
             "level": "info"
         })
 
-        await asyncio.sleep(0.4)
-        await self.broadcast({"type": "system", "text": "[ 3 • 2 • 1 • REVEAL! ]", "level": "highlight"})
-        await asyncio.sleep(0.4)
+        await asyncio.sleep(1.0)
+        await self.broadcast({"type": "system", "text": "[ 3 • READY ]", "level": "countdown"})
+        await asyncio.sleep(0.9)
+        await self.broadcast({"type": "system", "text": "[ 2 • STEADY ]", "level": "countdown"})
+        await asyncio.sleep(0.9)
+        await self.broadcast({"type": "system", "text": "[ 1 • DRAW! ]", "level": "countdown"})
+        await asyncio.sleep(0.9)
+        await self.broadcast({"type": "system", "text": "[ ⚔️ REVEAL! ⚔️ ]", "level": "highlight"})
+        await asyncio.sleep(0.7)
 
         p1_card = self.player1.chosen_card
         p1_rank = self.player1.chosen_rank
         p2_card = self.player2.chosen_card
         p2_rank = self.player2.chosen_rank
 
-        # Compact aesthetic duel box
-        duel_box = (
-            f"┌──────────────────────────────────────────────┐\n"
-            f"│  {self.player1.name}: [{p1_card.display_name} · {p1_rank.name}]  ⚔️  {self.player2.name}: [{p2_card.display_name} · {p2_rank.name}] │\n"
-            f"└──────────────────────────────────────────────┘"
-        )
-        await self.broadcast({"type": "system", "text": duel_box, "level": "card_box"})
+        # Broadcast structured card_box packet for responsive, non-deforming rendering
+        await self.broadcast({
+            "type": "card_box",
+            "round": self.round_number,
+            "p1_name": self.player1.name,
+            "p1_card": p1_card.type.name,
+            "p1_rank": p1_rank.name,
+            "p2_name": self.player2.name,
+            "p2_card": p2_card.type.name,
+            "p2_rank": p2_rank.name,
+            "is_revealed": True
+        })
+
+        await asyncio.sleep(1.2)
 
         # Resolve winner
         winner = determine_winner(p1_card.type, p2_card.type)

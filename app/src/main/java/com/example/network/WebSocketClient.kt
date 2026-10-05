@@ -50,27 +50,27 @@ class WebSocketClient(
                 .build()
 
             webSocket = client.newWebSocket(request, object : WebSocketListener() {
-                override fun onOpen(ws: WebSocket, response: Response) {
+                override fun onOpen(webSocket: WebSocket, response: Response) {
                     isConnected = true
                     listener.onConnected()
                 }
 
-                override fun onMessage(ws: WebSocket, text: String) {
+                override fun onMessage(webSocket: WebSocket, text: String) {
                     listener.onMessageReceived(text)
                 }
 
-                override fun onClosing(ws: WebSocket, code: Int, reason: String) {
+                override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
                     isConnected = false
-                    ws.close(1000, null)
+                    webSocket.close(1000, null)
                     listener.onDisconnected(reason)
                 }
 
-                override fun onClosed(ws: WebSocket, code: Int, reason: String) {
+                override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                     isConnected = false
                     listener.onDisconnected(reason)
                 }
 
-                override fun onFailure(ws: WebSocket, t: Throwable, response: Response?) {
+                override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                     isConnected = false
                     Log.e("WebSocketClient", "Connection failure: ${t.message}")
                     listener.onError(t)

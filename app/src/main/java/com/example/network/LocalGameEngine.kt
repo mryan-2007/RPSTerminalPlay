@@ -170,17 +170,19 @@ class LocalGameEngine(
         when (action) {
             "/start" -> handleStart()
             "/cards" -> handleCards()
-            "/choose" -> {
+            "/choose", "/play" -> {
                 if (parts.size >= 3) {
                     val card = CardType.fromString(parts[1])
                     val rank = WagerRank.fromString(parts[2])
                     if (card != null && rank != null) {
                         lockLocalChoice(card, rank)
                     } else {
-                        sendSystem("[SYSTEM] Usage: /choose <rock|paper|scissors|r|p|s> <C|B|A|S>", "danger")
+                        sendSystem("[SYSTEM] Usage: /play <r|p|s> <C|B|A|S>\nExample: /play r A", "danger")
                     }
+                } else if (parts.size == 2) {
+                    handleConversationalSelection(parts[1])
                 } else {
-                    sendSystem("[SYSTEM] Usage: /choose <rock|paper|scissors|r|p|s> <C|B|A|S>", "danger")
+                    sendSystem("[SYSTEM] Usage: /play <r|p|s> <C|B|A|S>\nExample: /play r A", "danger")
                 }
             }
             "/status" -> handleStatus()
@@ -221,7 +223,7 @@ class LocalGameEngine(
         val promptMsg = "YOUR AVAILABLE CARDS:\n" +
                         "${formatCardsBracket()}\n\n" +
                         "Type card: r (rock), p (paper), s (scissors)\n" +
-                        "Or combined: e.g. 'r A' or 'rock B'"
+                        "Or combined: e.g. 'r A' or '/play rock B'"
         sendSystem(promptMsg, "cards")
 
         syncState()
@@ -317,32 +319,39 @@ class LocalGameEngine(
         activeSequenceJob?.cancel()
         activeSequenceJob = scope.launch {
             state = "REVEAL"
-            sendSystem("\n[SYSTEM] BOTH CARDS LOCKED.", "info")
+            sendSystem("\n[SYSTEM] BOTH PLAYERS LOCKED CHOICES.", "info")
 
-            // Compact aesthetic countdown
-            delay(400)
-            sendSystem("[ 3 • 2 • 1 • REVEAL! ]", "highlight")
-            delay(400)
+            // Suspenseful dramatic countdown with proper pacing
+            delay(1000)
+            sendSystem("[ 3 • READY ]", "countdown")
+            delay(900)
+            sendSystem("[ 2 • STEADY ]", "countdown")
+            delay(900)
+            sendSystem("[ 1 • DRAW! ]", "countdown")
+            delay(900)
+            sendSystem("[ ⚔️ REVEAL! ⚔️ ]", "highlight")
+            delay(700)
 
             val p1Card = p1ChosenCard ?: CardType.ROCK
             val p1Rk = p1ChosenRank ?: WagerRank.C
             val p2Card = p2ChosenCard ?: CardType.ROCK
             val p2Rk = p2ChosenRank ?: WagerRank.C
 
-            // Structured card-box payload.
-            // The Android UI will render this responsively instead of using ASCII.
-            val cardBoxPayload = JSONObject().apply {
-            put("type", "card_box")
-            put("p1_name", localPlayerName)
-            put("p1_card", p1Card.code)
-            put("p1_rank", p1Rk.code)
-            put("p2_name", opponentName)
-            put("p2_card", p2Card.code)
-            put("p2_rank", p2Rk.code)
-            put("is_revealed", true)
+            // Send structured card_box payload so the responsive auto-sizing view renders without deforming
+            val cardBoxJson = JSONObject().apply {
+                put("type", "card_box")
+                put("round", roundNumber)
+                put("p1_name", localPlayerName)
+                put("p1_card", p1Card.name)
+                put("p1_rank", p1Rk.code)
+                put("p2_name", opponentName)
+                put("p2_card", p2Card.name)
+                put("p2_rank", p2Rk.code)
+                put("is_revealed", true)
             }
+            onMessageToClient(cardBoxJson.toString())
 
-onMessageToClient(cardBoxPayload.toString())
+            delay(1200)
 
             // Determine winner
             val winner = determineWinner(p1Card, p2Card)
@@ -357,7 +366,6 @@ onMessageToClient(cardBoxPayload.toString())
                 reason = "BOTH CHOSE ${p1Card.displayName}. IT'S A TIE!"
                 outcomeText = "[SYSTEM] $reason\n[SYSTEM] DRAW! Wagers returned (0 pts)."
             } else if (winner == 1) {
-                // Each player's score changes strictly by their OWN chosen wager
                 p1Delta = p1Rk.points
                 p2Delta = -p2Rk.points
                 p1Score += p1Delta
@@ -408,6 +416,7 @@ onMessageToClient(cardBoxPayload.toString())
             p1Ready = false
             p2Ready = false
 
+            delay(1500)
             sendSystem("\n[SYSTEM] Type /start to begin Round $roundNumber.", "info")
             syncState()
         }
